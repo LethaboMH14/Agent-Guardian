@@ -1,5 +1,6 @@
 import { Circle, CircleEnvironments } from '@circle-fin/circle-sdk';
 
+// Circle SDK initialization with API key
 const circle = new Circle(
   process.env.CIRCLE_API_KEY!,
   CircleEnvironments.sandbox  // switch to production for mainnet
