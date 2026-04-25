@@ -44,3 +44,10 @@ tmp/
 temp/
 
 .vercel
+
+# Internal documentation (not for public repo)
+cascade-prompts.md
+MASTER-BUILD.md
+ui-integration.md
+ZK-README.md
+docs/submission-checklist.md
