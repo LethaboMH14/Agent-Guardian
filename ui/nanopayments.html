@@ -410,7 +410,18 @@
           .from('nanopayments')
           .select('amount');
         
-        if (!error && data && data.length > 0) {
+        if (error) {
+          console.error('Supabase error loading stats:', error);
+          const totalEl = document.getElementById('total-usdc');
+          if (totalEl) totalEl.textContent = 'Error loading data';
+          const countEl = document.getElementById('total-txns');
+          if (countEl) countEl.textContent = 'Error';
+          const avgEl = document.getElementById('avg-cost');
+          if (avgEl) avgEl.textContent = 'Error';
+          return;
+        }
+        
+        if (data && data.length > 0) {
           const total = data.reduce((sum, d) => sum + (d.amount || 0), 0);
           const count = data.length;
           const avg = count > 0 ? total / count : 0;
@@ -424,27 +435,21 @@
           const avgEl = document.getElementById('avg-cost');
           if (avgEl) avgEl.textContent = `$${avg.toFixed(4)}`;
         } else {
-          // Mock data for demo if Supabase fails or is empty
           const totalEl = document.getElementById('total-usdc');
-          if (totalEl) totalEl.textContent = '$0.6600';
-          
+          if (totalEl) totalEl.textContent = '$0.00';
           const countEl = document.getElementById('total-txns');
-          if (countEl) countEl.textContent = '300';
-          
+          if (countEl) countEl.textContent = '0';
           const avgEl = document.getElementById('avg-cost');
-          if (avgEl) avgEl.textContent = '$0.0022';
+          if (avgEl) avgEl.textContent = '$0.00';
         }
       } catch (err) {
         console.error('Stats error:', err);
-        // Fallback to mock data
         const totalEl = document.getElementById('total-usdc');
-        if (totalEl) totalEl.textContent = '$0.6600';
-        
+        if (totalEl) totalEl.textContent = 'Error: ' + err.message;
         const countEl = document.getElementById('total-txns');
-        if (countEl) countEl.textContent = '300';
-        
+        if (countEl) countEl.textContent = 'Error';
         const avgEl = document.getElementById('avg-cost');
-        if (avgEl) avgEl.textContent = '$0.0022';
+        if (avgEl) avgEl.textContent = 'Error';
       }
     }
     
@@ -457,7 +462,14 @@
           .order('created_at', { ascending: false })
           .limit(20);
         
-        if (!error && data && data.length > 0) {
+        if (error) {
+          console.error('Supabase error loading payment stream:', error);
+          const container = document.getElementById('payment-stream');
+          container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><div>Error loading payments: ' + error.message + '</div></div>';
+          return;
+        }
+        
+        if (data && data.length > 0) {
           const container = document.getElementById('payment-stream');
           container.innerHTML = data.map(row => `
             <div class="payment-row neomorphic-inset">
@@ -469,45 +481,13 @@
             </div>
           `).join('');
         } else {
-          // Mock data for demo
-          const mockPayments = [
-            { action: 'RISK_AGENT_VOTE', amount: 0.001, session_id: 'session-abc123', created_at: new Date(Date.now() - 30000).toISOString() },
-            { action: 'COMPLIANCE_VOTE', amount: 0.001, session_id: 'session-abc123', created_at: new Date(Date.now() - 60000).toISOString() },
-            { action: 'ZK_PROOF_VERIFICATION', amount: 0.003, session_id: 'session-def456', created_at: new Date(Date.now() - 120000).toISOString() },
-            { action: 'INSURANCE_PREMIUM', amount: 0.005, session_id: 'session-ghi789', created_at: new Date(Date.now() - 180000).toISOString() },
-            { action: 'EXECUTION_VOTE', amount: 0.001, session_id: 'session-abc123', created_at: new Date(Date.now() - 240000).toISOString() },
-          ];
           const container = document.getElementById('payment-stream');
-          container.innerHTML = mockPayments.map(row => `
-            <div class="payment-row neomorphic-inset">
-              <div class="payment-dot ${actionColors[row.action] || 'vote'}"></div>
-              <div class="payment-action">${row.action}</div>
-              <div class="payment-amount">$${row.amount.toFixed(4)}</div>
-              <div class="payment-session">${truncate(row.session_id, 8)}</div>
-              <div class="payment-time">${timeAgo(row.created_at)}</div>
-            </div>
-          `).join('');
+          container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">💳</div><div>No payments yet. Run demo-bulk.ts to generate nanopayments.</div></div>';
         }
       } catch (err) {
         console.error('Payment stream error:', err);
-        // Fallback mock data
-        const mockPayments = [
-          { action: 'RISK_AGENT_VOTE', amount: 0.001, session_id: 'session-abc123', created_at: new Date(Date.now() - 30000).toISOString() },
-          { action: 'COMPLIANCE_VOTE', amount: 0.001, session_id: 'session-abc123', created_at: new Date(Date.now() - 60000).toISOString() },
-          { action: 'ZK_PROOF_VERIFICATION', amount: 0.003, session_id: 'session-def456', created_at: new Date(Date.now() - 120000).toISOString() },
-          { action: 'INSURANCE_PREMIUM', amount: 0.005, session_id: 'session-ghi789', created_at: new Date(Date.now() - 180000).toISOString() },
-          { action: 'EXECUTION_VOTE', amount: 0.001, session_id: 'session-abc123', created_at: new Date(Date.now() - 240000).toISOString() },
-        ];
         const container = document.getElementById('payment-stream');
-        container.innerHTML = mockPayments.map(row => `
-          <div class="payment-row neomorphic-inset">
-            <div class="payment-dot ${actionColors[row.action] || 'vote'}"></div>
-            <div class="payment-action">${row.action}</div>
-            <div class="payment-amount">$${row.amount.toFixed(4)}</div>
-            <div class="payment-session">${truncate(row.session_id, 8)}</div>
-            <div class="payment-time">${timeAgo(row.created_at)}</div>
-          </div>
-        `).join('');
+        container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><div>Error: ' + err.message + '</div></div>';
       }
     }
     
@@ -518,7 +498,14 @@
           .from('nanopayments')
           .select('action, amount');
         
-        if (!error && data && data.length > 0) {
+        if (error) {
+          console.error('Supabase error loading cost chart:', error);
+          const ctx = document.getElementById('cost-chart');
+          if (ctx) ctx.parentElement.innerHTML = '<div class="empty-state">Error loading cost data: ' + error.message + '</div>';
+          return;
+        }
+        
+        if (data && data.length > 0) {
           const grouped = {};
           data.forEach(d => {
             if (!grouped[d.action]) grouped[d.action] = [];
@@ -562,71 +549,13 @@
             });
           }
         } else {
-          // Mock data for demo
           const ctx = document.getElementById('cost-chart');
-          if (ctx) {
-            new Chart(ctx, {
-              type: 'bar',
-              data: {
-                labels: ['COUNCIL VOTE', 'ZK PROOF VERIFY', 'INSURANCE PREMIUM', 'BATCH PROOF', 'SYMBOLIC CHECK'],
-                datasets: [{
-                  label: 'Avg Cost (USDC)',
-                  data: [0.001, 0.003, 0.005, 0.0008, 0.002],
-                  backgroundColor: '#6366f1',
-                  borderRadius: 6
-                }]
-              },
-              options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: { display: false }
-                },
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                    ticks: {
-                      callback: value => `$${value.toFixed(4)}`
-                    }
-                  }
-                }
-              }
-            });
-          }
+          if (ctx) ctx.parentElement.innerHTML = '<div class="empty-state">No cost data available yet</div>';
         }
       } catch (err) {
         console.error('Cost chart error:', err);
-        // Fallback mock data
         const ctx = document.getElementById('cost-chart');
-        if (ctx) {
-          new Chart(ctx, {
-            type: 'bar',
-            data: {
-              labels: ['COUNCIL VOTE', 'ZK PROOF VERIFY', 'INSURANCE PREMIUM', 'BATCH PROOF', 'SYMBOLIC CHECK'],
-              datasets: [{
-                label: 'Avg Cost (USDC)',
-                data: [0.001, 0.003, 0.005, 0.0008, 0.002],
-                backgroundColor: '#6366f1',
-                borderRadius: 6
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: { display: false }
-              },
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  ticks: {
-                    callback: value => `$${value.toFixed(4)}`
-                  }
-                }
-              }
-            }
-          });
-        }
+        if (ctx) ctx.parentElement.innerHTML = '<div class="empty-state">Error: ' + err.message + '</div>';
       }
     }
     
@@ -637,7 +566,14 @@
           .from('nanopayments')
           .select('created_at');
         
-        if (!error && data && data.length > 0) {
+        if (error) {
+          console.error('Supabase error loading volume chart:', error);
+          const ctx = document.getElementById('volume-chart');
+          if (ctx) ctx.parentElement.innerHTML = '<div class="empty-state">Error loading volume data: ' + error.message + '</div>';
+          return;
+        }
+        
+        if (data && data.length > 0) {
           const hourly = {};
           data.forEach(d => {
             const hour = new Date(d.created_at).getHours();
@@ -679,71 +615,13 @@
             });
           }
         } else {
-          // Mock data for demo
           const ctx = document.getElementById('volume-chart');
-          if (ctx) {
-            new Chart(ctx, {
-              type: 'bar',
-              data: {
-                labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
-                datasets: [{
-                  label: 'Payments',
-                  data: [15, 8, 45, 62, 38, 132],
-                  backgroundColor: '#818cf8',
-                  borderRadius: 6
-                }]
-              },
-              options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: { display: false }
-                },
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                    ticks: {
-                      stepSize: 20
-                    }
-                  }
-                }
-              }
-            });
-          }
+          if (ctx) ctx.parentElement.innerHTML = '<div class="empty-state">No volume data available yet</div>';
         }
       } catch (err) {
         console.error('Volume chart error:', err);
-        // Fallback mock data
         const ctx = document.getElementById('volume-chart');
-        if (ctx) {
-          new Chart(ctx, {
-            type: 'bar',
-            data: {
-              labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
-              datasets: [{
-                label: 'Payments',
-                data: [15, 8, 45, 62, 38, 132],
-                backgroundColor: '#818cf8',
-                borderRadius: 6
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: { display: false }
-              },
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  ticks: {
-                    stepSize: 20
-                  }
-                }
-              }
-            }
-          });
-        }
+        if (ctx) ctx.parentElement.innerHTML = '<div class="empty-state">Error: ' + err.message + '</div>';
       }
     }
     
@@ -751,6 +629,9 @@
     async function loadWalletBalances() {
       try {
         const response = await fetch('/api/wallets');
+        if (!response.ok) {
+          throw new Error(`API returned ${response.status}: ${response.statusText}`);
+        }
         const wallets = await response.json();
         
         const tbody = document.getElementById('wallet-table-body');
@@ -765,24 +646,8 @@
         `).join('');
       } catch (err) {
         console.error('Wallet balances error:', err);
-        // Mock data for demo
-        const mockWallets = [
-          { name: 'ORCHESTRATOR', walletId: '1000000001', balance: 0.25, sent: 180, received: 0 },
-          { name: 'RISK_AGENT', walletId: '1000000002', balance: 0.06, sent: 0, received: 60 },
-          { name: 'COMPLIANCE', walletId: '1000000003', balance: 0.06, sent: 0, received: 60 },
-          { name: 'EXECUTION', walletId: '1000000004', balance: 0.06, sent: 0, received: 60 },
-          { name: 'SYNTHESIZER', walletId: '1000000005', balance: 0.18, sent: 0, received: 180 },
-        ];
         const tbody = document.getElementById('wallet-table-body');
-        tbody.innerHTML = mockWallets.map(w => `
-          <tr>
-            <td class="wallet-name">${w.name}</td>
-            <td style="font-family: monospace; font-size: 11px;">${truncate(w.walletId, 10)}</td>
-            <td class="wallet-balance">$${w.balance.toFixed(4)}</td>
-            <td>${w.sent}</td>
-            <td>${w.received}</td>
-          </tr>
-        `).join('');
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #dc2626;">Error loading wallets: ' + err.message + '</td></tr>';
       }
     }
     
