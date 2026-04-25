@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guardian Sentinel — Cross-Chain Sentinel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.1/ethers.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #e8eaf0;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+    
+    .neomorphic-raised {
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    .neomorphic-inset {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    .skeleton {
+      background: linear-gradient(90deg, #dcdee4 25%, #e8eaf0 50%, #dcdee4 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+    
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .skeleton-value {
+      height: 32px;
+      width: 60%;
+    }
+    
+    .error-state {
+      color: #dc2626;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .retry-btn {
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: none;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      color: #1e293b;
+      cursor: pointer;
+    }
+    
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 256px;
+      height: 100vh;
+      background: #e8eaf0;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+    }
+    
+    .sidebar-header {
+      margin-bottom: 32px;
+    }
+    
+    .sidebar-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    
+    .sidebar-subtitle {
+      font-size: 12px;
+      color: #64748b;
+    }
+    
+    .nav-links {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .nav-link {
+      padding: 12px 16px;
+      border-radius: 12px;
+      text-decoration: none;
+      color: #64748b;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .nav-link:hover {
+      color: #6366f1;
+    }
+    
+    .nav-link.active {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      color: #6366f1;
+    }
+    
+    .sidebar-bottom {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .new-analysis-btn {
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #6366f1;
+      color: white;
+      border: none;
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: 6px 6px 12px rgba(99, 102, 241, 0.3);
+      transition: all 0.2s;
+    }
+    
+    .new-analysis-btn:hover {
+      background: #4f46e5;
+    }
+    
+    .lock-btn {
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      color: #dc2626;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .lock-btn:hover {
+      box-shadow: 4px 4px 8px rgba(0,0,0,0.06), -4px -4px 8px rgba(255,255,255,0.5);
+    }
+    
+    .support-link {
+      text-align: center;
+      color: #64748b;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    
+    .main-content {
+      margin-left: 256px;
+      padding: 24px;
+    }
+    
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      gap: 16px;
+    }
+    
+    .branding {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .branding-icon {
+      width: 40px;
+      height: 40px;
+      background: #6366f1;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+    }
+    
+    .branding-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #64748b;
+      font-size: 18px;
+      transition: all 0.2s;
+    }
+    
+    .icon-btn:hover {
+      color: #6366f1;
+    }
+    
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #6366f1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+    }
+    
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    
+    .page-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1e293b;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .defcon-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #10b981;
+    }
+    
+    .defcon-status {
+      font-size: 14px;
+      color: #64748b;
+      margin-left: 8px;
+    }
+    
+    .refresh-btn {
+      padding: 12px 20px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .refresh-btn:hover {
+      box-shadow: 4px 4px 8px rgba(0,0,0,0.06), -4px -4px 8px rgba(255,255,255,0.5);
+    }
+    
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .left-column {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    .right-column {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    .card {
+      padding: 24px;
+    }
+    
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    
+    .live-badge {
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #10b981;
+      color: white;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .topology-container {
+      position: relative;
+      height: 280px;
+    }
+    
+    .topology-svg {
+      width: 100%;
+      height: 100%;
+    }
+    
+    .node-label {
+      font-size: 11px;
+      font-weight: 600;
+      fill: #1e293b;
+    }
+    
+    .sub-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    
+    .donut-container {
+      position: relative;
+      height: 200px;
+    }
+    
+    .donut-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+    
+    .donut-total {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .donut-label {
+      font-size: 12px;
+      color: #64748b;
+    }
+    
+    .appeal-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .appeal-item:last-child {
+      border-bottom: none;
+    }
+    
+    .appeal-info {
+      flex: 1;
+    }
+    
+    .appeal-wallet {
+      font-size: 14px;
+      font-weight: 500;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    
+    .appeal-reason {
+      font-size: 12px;
+      color: #64748b;
+    }
+    
+    .appeal-countdown {
+      font-size: 14px;
+      font-weight: 600;
+      color: #6366f1;
+    }
+    
+    .vote-dots {
+      display: flex;
+      gap: 4px;
+    }
+    
+    .vote-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #cbd5e1;
+    }
+    
+    .vote-dot.approved {
+      background: #10b981;
+    }
+    
+    .threat-gauge {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px;
+    }
+    
+    .gauge-circle {
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    
+    .gauge-ring {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 8px solid;
+      border-color: #10b981;
+    }
+    
+    .gauge-value {
+      font-size: 64px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .gauge-label {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 8px;
+    }
+    
+    .table-card {
+      padding: 24px;
+    }
+    
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .table th {
+      text-align: left;
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 12px;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .table td {
+      padding: 12px;
+      font-size: 14px;
+      color: #1e293b;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .table tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .freeze-badge {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .freeze-badge.freeze {
+      background: #dc2626;
+      color: white;
+    }
+    
+    .freeze-badge.warn {
+      background: #f59e0b;
+      color: white;
+    }
+    
+    .zk-check {
+      color: #10b981;
+      font-size: 16px;
+    }
+    
+    .zk-pending {
+      color: #cbd5e1;
+      font-size: 16px;
+    }
+    
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .status-badge.propagated {
+      background: #10b981;
+      color: white;
+    }
+    
+    .status-badge.pending {
+      background: #cbd5e1;
+      color: #64748b;
+    }
+    
+    .skeleton {
+      background: linear-gradient(90deg, #e8eaf0 25%, #f1f3f5 50%, #e8eaf0 75%);
+      background-size: 200% 100%;
+      animation: pulse 1.5s infinite;
+      border-radius: 4px;
+    }
+    
+    @keyframes pulse {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .skeleton-value {
+      height: 32px;
+      width: 60%;
+    }
+    
+    .node {
+      transition: opacity 0.3s;
+    }
+    
+    .node.fade-in {
+      animation: fadeIn 0.5s ease-in;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <script src="js/env.js"></script>
+  <script src="js/client.js"></script>
+  <script type="module">
+    import { initNav } from './js/nav.js';
+    import { initTopBar } from './js/topbar.js';
+    initNav('chain-monitors');
+    initTopBar();
+  </script>
+
+  <!-- Main content -->
+  <main class="main-content">
+    <!-- Page header -->
+    <div class="page-header">
+      <div class="page-title">
+        CROSS-CHAIN SENTINEL
+        <div class="defcon-dot" id="defcon-dot"></div>
+        <span class="defcon-status" id="defcon-status">DEFCON-1 NORMAL</span>
+      </div>
+      <button class="refresh-btn" id="refresh-topology">
+        <span>🔄</span> Refresh Topology
+      </button>
+    </div>
+    
+    <!-- Content grid -->
+    <div class="content-grid">
+      <!-- Left column -->
+      <div class="left-column">
+        <!-- Network Routing Topology -->
+        <div class="card neomorphic-raised">
+          <div class="card-header">
+            <h3 class="card-title">Network Routing Topology</h3>
+            <span class="live-badge">LIVE</span>
+          </div>
+          <div class="topology-container">
+            <svg class="topology-svg" viewBox="0 0 730 260" id="topology-svg">
+              <!-- Background map (simplified) -->
+              <rect x="0" y="0" width="730" height="260" fill="#e8eaf0"/>
+              
+              <!-- Center point -->
+              <circle cx="400" cy="130" r="4" fill="#6366f1"/>
+              
+              <!-- Connection lines -->
+              <line x1="220" y1="100" x2="400" y2="130" stroke="#cbd5e1" stroke-width="2"/>
+              <line x1="170" y1="110" x2="400" y2="130" stroke="#cbd5e1" stroke-width="2"/>
+              <line x1="80" y1="115" x2="400" y2="130" stroke="#cbd5e1" stroke-width="2"/>
+              <line x1="300" y1="130" x2="400" y2="130" stroke="#cbd5e1" stroke-width="2"/>
+              
+              <!-- Nodes -->
+              <g class="node" id="node-ethereum">
+                <circle cx="220" cy="100" r="12" fill="#10b981"/>
+                <text x="220" y="125" text-anchor="middle" class="node-label">Ethereum</text>
+              </g>
+              
+              <g class="node" id="node-arbitrum">
+                <circle cx="170" cy="110" r="12" fill="#10b981"/>
+                <text x="170" y="135" text-anchor="middle" class="node-label">Arbitrum</text>
+              </g>
+              
+              <g class="node" id="node-base">
+                <circle cx="80" cy="115" r="12" fill="#10b981"/>
+                <text x="80" y="140" text-anchor="middle" class="node-label">Base</text>
+              </g>
+              
+              <g class="node" id="node-polygon">
+                <circle cx="300" cy="130" r="12" fill="#10b981"/>
+                <text x="300" y="155" text-anchor="middle" class="node-label">Polygon</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+        
+        <!-- Sub row -->
+        <div class="sub-row">
+          <!-- Message Breakdown -->
+          <div class="card neomorphic-raised">
+            <h3 class="card-title" style="margin-bottom: 16px;">Message Breakdown</h3>
+            <div class="donut-container">
+              <canvas id="donut-chart"></canvas>
+              <div class="donut-center">
+                <div class="donut-total" id="total-messages">0</div>
+                <div class="donut-label">Total</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Council Appeals -->
+          <div class="card neomorphic-raised">
+            <h3 class="card-title" style="margin-bottom: 16px;">Active Council Appeals</h3>
+            <div id="council-appeals">
+              <div class="skeleton" style="height: 60px; margin-bottom: 12px;"></div>
+              <div class="skeleton" style="height: 60px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Right column -->
+      <div class="right-column">
+        <!-- Threat Level Gauge -->
+        <div class="card neomorphic-raised">
+          <div class="threat-gauge">
+            <div class="gauge-circle">
+              <div class="gauge-ring" id="threat-ring"></div>
+              <div class="gauge-value" id="threat-value">1</div>
+            </div>
+            <div class="gauge-label">DEFCON LEVEL</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Freeze Propagation table -->
+    <div class="table-card neomorphic-raised">
+      <h3 class="card-title">Freeze Propagation History</h3>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>GUID</th>
+            <th>AGENT</th>
+            <th>TYPE</th>
+            <th>ZK PROOF</th>
+            <th>STATUS</th>
+            <th>TIME</th>
+          </tr>
+        </thead>
+        <tbody id="freeze-table">
+          <tr>
+            <td colspan="6"><div class="skeleton" style="height: 40px;"></div></td>
+          </tr>
+          <tr>
+            <td colspan="6"><div class="skeleton" style="height: 40px;"></div></td>
+          </tr>
+          <tr>
+            <td colspan="6"><div class="skeleton" style="height: 40px;"></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+  
+  <script src="js/env.js"></script>
+  <script type="module">
+    const { supabase, timeAgo, truncate, toast, loadTopBar, setActiveNav } = window.AG;
+    
+    let donutChart;
+    let countdownInterval;
+    
+    // DEFCON color mapping
+    const defconColors = {
+      1: { color: '#10b981', label: 'DEFCON-1 NORMAL' },
+      2: { color: '#f59e0b', label: 'DEFCON-2 ELEVATED' },
+      3: { color: '#f97316', label: 'DEFCON-3 HIGH' },
+      4: { color: '#dc2626', label: 'DEFCON-4 CRITICAL' },
+      5: { color: '#991b1b', label: 'DEFCON-5 MAX' }
+    };
+    
+    // Load DEFCON status
+    async function loadDefconStatus() {
+      try {
+        const { data, error } = await supabase
+          .from('sentinel_alerts')
+          .select('defcon_level')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (!error && data) {
+          const level = data.defcon_level || 1;
+          const config = defconColors[level] || defconColors[1];
+          
+          document.getElementById('defcon-dot').style.background = config.color;
+          document.getElementById('defcon-status').textContent = config.label;
+          document.getElementById('threat-value').textContent = level;
+          document.getElementById('threat-ring').style.borderColor = config.color;
+        }
+      } catch (err) {
+        console.error('DEFCON error:', err);
+      }
+    }
+    
+    // Load network topology
+    async function loadNetworkTopology() {
+      try {
+        const { data, error } = await supabase
+          .from('sentinel_heartbeats')
+          .select('chain_status')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (!error && data && data.chain_status) {
+          const status = typeof data.chain_status === 'string' 
+            ? JSON.parse(data.chain_status) 
+            : data.chain_status;
+          
+          // Update node colors
+          const nodeColors = {
+            ethereum: status.ethereum?.status === 'ONLINE' ? '#10b981' : 
+                         status.ethereum?.status === 'DEGRADED' ? '#f59e0b' : '#dc2626',
+            arbitrum: status.arbitrum?.status === 'ONLINE' ? '#10b981' : 
+                        status.arbitrum?.status === 'DEGRADED' ? '#f59e0b' : '#dc2626',
+            base: status.base?.status === 'ONLINE' ? '#10b981' : 
+                   status.base?.status === 'DEGRADED' ? '#f59e0b' : '#dc2626',
+            polygon: status.polygon?.status === 'ONLINE' ? '#10b981' : 
+                     status.polygon?.status === 'DEGRADED' ? '#f59e0b' : '#dc2626'
+          };
+          
+          document.querySelector('#node-ethereum circle').setAttribute('fill', nodeColors.ethereum);
+          document.querySelector('#node-arbitrum circle').setAttribute('fill', nodeColors.arbitrum);
+          document.querySelector('#node-base circle').setAttribute('fill', nodeColors.base);
+          document.querySelector('#node-polygon circle').setAttribute('fill', nodeColors.polygon);
+          
+          // Add fade-in animation
+          document.querySelectorAll('.node').forEach(node => {
+            node.classList.add('fade-in');
+            setTimeout(() => node.classList.remove('fade-in'), 500);
+          });
+        }
+      } catch (err) {
+        console.error('Topology error:', err);
+      }
+    }
+    
+    // Load message breakdown
+    async function loadMessageBreakdown() {
+      try {
+        const { data, error } = await supabase
+          .from('cross_chain_freezes')
+          .select('msg_type');
+        
+        if (!error && data && data.length > 0) {
+          const grouped = {};
+          data.forEach(d => {
+            const type = d.msg_type || 'UNKNOWN';
+            grouped[type] = (grouped[type] || 0) + 1;
+          });
+          
+          const labels = Object.keys(grouped);
+          const values = labels.map(l => grouped[l]);
+          const total = values.reduce((sum, v) => sum + v, 0);
+          
+          document.getElementById('total-messages').textContent = total;
+          
+          const ctx = document.getElementById('donut-chart').getContext('2d');
+          
+          if (donutChart) {
+            donutChart.destroy();
+          }
+          
+          donutChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+              labels: labels,
+              datasets: [{
+                data: values,
+                backgroundColor: ['#6366f1', '#7c3aed', '#dc2626'],
+                borderWidth: 0
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              cutout: '70%',
+              plugins: { legend: { display: false } }
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Message breakdown error:', err);
+      }
+    }
+    
+    // Load council appeals
+    async function loadCouncilAppeals() {
+      try {
+        const { data, error } = await supabase
+          .from('sentinel_appeals')
+          .select('*')
+          .eq('status', 'ACTIVE')
+          .order('expires_at', { ascending: true });
+        
+        if (!error && data) {
+          const container = document.getElementById('council-appeals');
+          
+          if (data.length === 0) {
+            container.innerHTML = '<p style="color: #64748b; text-align: center; padding: 20px;">No active appeals</p>';
+            return;
+          }
+          
+          container.innerHTML = data.map(appeal => `
+            <div class="appeal-item" data-expires="${appeal.expires_at}">
+              <div class="appeal-info">
+                <div class="appeal-wallet">${truncate(appeal.wallet || '', 10)}</div>
+                <div class="appeal-reason">${appeal.reason || 'No reason provided'}</div>
+              </div>
+              <div style="text-align: right;">
+                <div class="appeal-countdown">--:--:--</div>
+                <div class="vote-dots">
+                  <div class="vote-dot"></div>
+                  <div class="vote-dot"></div>
+                  <div class="vote-dot"></div>
+                </div>
+              </div>
+            </div>
+          `).join('');
+          
+          // Start countdown timer
+          startCountdownTimer();
+        }
+      } catch (err) {
+        console.error('Council appeals error:', err);
+      }
+    }
+    
+    // Countdown timer
+    function startCountdownTimer() {
+      if (countdownInterval) clearInterval(countdownInterval);
+      
+      countdownInterval = setInterval(() => {
+        document.querySelectorAll('.appeal-item').forEach(item => {
+          const expiresAt = new Date(item.dataset.expires);
+          const now = new Date();
+          const diff = expiresAt - now;
+          
+          if (diff > 0) {
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            item.querySelector('.appeal-countdown').textContent = 
+              `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+          } else {
+            item.querySelector('.appeal-countdown').textContent = 'EXPIRED';
+          }
+        });
+      }, 1000);
+    }
+    
+    // Load freeze propagation table
+    async function loadFreezeTable() {
+      try {
+        const { data, error } = await supabase
+          .from('cross_chain_freezes')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(20);
+        
+        if (!error && data) {
+          const tbody = document.getElementById('freeze-table');
+          tbody.innerHTML = data.map(row => `
+            <tr>
+              <td>${truncate(row.guid || '', 10)}</td>
+              <td><a href="agent-registry.html?agent=${row.agent_address}" style="color: #6366f1; text-decoration: none;">${truncate(row.agent_address || '', 8)}</a></td>
+              <td>
+                <span class="freeze-badge ${row.msg_type === 'FREEZE' ? 'freeze' : 'warn'}">
+                  ${row.msg_type || 'UNKNOWN'}
+                </span>
+              </td>
+              <td>
+                ${row.zk_proof_hash 
+                  ? '<span class="zk-check">✅</span>'
+                  : '<span class="zk-pending">⬜</span>'}
+              </td>
+              <td>
+                <span class="status-badge ${row.status === 'PROPAGATED' ? 'propagated' : 'pending'}">
+                  ${row.status || 'PENDING'}
+                </span>
+              </td>
+              <td>${timeAgo(row.created_at)}</td>
+            </tr>
+          `).join('');
+        }
+      } catch (err) {
+        console.error('Freeze table error:', err);
+        document.getElementById('freeze-table').innerHTML = '<tr><td colspan="6">Error loading data</td></tr>';
+      }
+    }
+    
+    // Refresh topology button
+    document.getElementById('refresh-topology').addEventListener('click', () => {
+      loadNetworkTopology();
+    });
+    
+    // Realtime DEFCON subscription
+    function setupRealtime() {
+      supabase
+        .channel('defcon-updates')
+        .on('postgres_changes', { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'sentinel_alerts' 
+        }, async (payload) => {
+          await loadDefconStatus();
+        })
+        .subscribe();
+    }
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      setActiveNav();
+      loadTopBar();
+      loadDefconStatus();
+      loadMessageBreakdown();
+      loadCouncilAppeals();
+      loadFreezeTable();
+      setupRealtime();
+    });
+  </script>
+</body>
+</html>

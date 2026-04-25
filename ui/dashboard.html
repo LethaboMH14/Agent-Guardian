@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentGuardian — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.1/ethers.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #e8eaf0;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+    
+    /* Neomorphic raised card */
+    .neomorphic-raised {
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    /* Neomorphic pressed/inset */
+    .neomorphic-inset {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    /* Loading skeleton */
+    .skeleton {
+      background: linear-gradient(90deg, #dcdee4 25%, #e8eaf0 50%, #dcdee4 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+    
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .skeleton-value {
+      height: 32px;
+      width: 60%;
+    }
+    
+    /* Error state */
+    .error-state {
+      color: #dc2626;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .retry-btn {
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: none;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      color: #1e293b;
+      cursor: pointer;
+    }
+    
+    /* Sidebar */
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 256px;
+      height: 100vh;
+      background: #e8eaf0;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 40px;
+    }
+    
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: #6366f1;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+    }
+    
+    .logo-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .nav-links {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .nav-link {
+      padding: 12px 16px;
+      border-radius: 12px;
+      text-decoration: none;
+      color: #64748b;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .nav-link:hover {
+      color: #6366f1;
+    }
+    
+    .nav-link.active {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      color: #6366f1;
+    }
+    
+    .sidebar-bottom {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .lock-btn {
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      color: #dc2626;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .lock-btn:hover {
+      box-shadow: 4px 4px 8px rgba(0,0,0,0.06), -4px -4px 8px rgba(255,255,255,0.5);
+    }
+    
+    .support-link {
+      text-align: center;
+      color: #64748b;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    
+    /* Main content */
+    .main-content {
+      margin-left: 256px;
+      padding: 24px;
+    }
+    
+    /* Top bar */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      gap: 16px;
+    }
+    
+    .search-input {
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: none;
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      width: 300px;
+      font-family: inherit;
+      color: #1e293b;
+    }
+    
+    .search-input::placeholder {
+      color: #94a3b8;
+    }
+    
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .defcon-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .defcon-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+    }
+    
+    .threats-counter {
+      font-size: 14px;
+      font-weight: 600;
+      color: #6366f1;
+    }
+    
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #64748b;
+      font-size: 18px;
+      transition: all 0.2s;
+    }
+    
+    .icon-btn:hover {
+      color: #6366f1;
+    }
+    
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #6366f1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+    }
+    
+    /* Metric cards */
+    .metric-cards {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .metric-card {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .metric-label {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .metric-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .metric-change {
+      font-size: 12px;
+      color: #10b981;
+      font-weight: 500;
+    }
+    
+    /* Content grid */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .chart-section {
+      padding: 24px;
+    }
+    
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 16px;
+    }
+    
+    .chart-container {
+      height: 300px;
+    }
+    
+    /* Security layers panel */
+    .security-panel {
+      padding: 20px;
+    }
+    
+    .security-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .security-item:last-child {
+      border-bottom: none;
+    }
+    
+    .security-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: #1e293b;
+    }
+    
+    .security-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #64748b;
+    }
+    
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+    
+    .status-dot.active {
+      background: #10b981;
+    }
+    
+    .status-dot.standby {
+      background: #f59e0b;
+    }
+    
+    /* Bottom row */
+    .bottom-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    
+    .gauge-section {
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    
+    .gauge-container {
+      width: 120px;
+      height: 120px;
+      position: relative;
+    }
+    
+    .gauge-value {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 24px;
+      font-weight: 700;
+      color: #6366f1;
+    }
+    
+    .gauge-label {
+      font-size: 12px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    /* Performance bars */
+    .performance-section {
+      padding: 24px;
+    }
+    
+    .perf-item {
+      margin-bottom: 16px;
+    }
+    
+    .perf-item:last-child {
+      margin-bottom: 0;
+    }
+    
+    .perf-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      font-weight: 500;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+    
+    .perf-value {
+      color: #6366f1;
+    }
+    
+    .progress-bar {
+      height: 8px;
+      border-radius: 4px;
+      background: #e8eaf0;
+      box-shadow: inset 2px 2px 4px rgba(0,0,0,0.06), inset -2px -2px 4px rgba(255,255,255,0.5);
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #6366f1, #7c3aed);
+      transition: width 0.3s;
+    }
+    
+    /* Loading skeleton */
+    .skeleton {
+      background: linear-gradient(90deg, #e8eaf0 25%, #f1f3f5 50%, #e8eaf0 75%);
+      background-size: 200% 100%;
+      animation: pulse 1.5s infinite;
+      border-radius: 4px;
+    }
+    
+    @keyframes pulse {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .skeleton-text {
+      height: 20px;
+      width: 60%;
+    }
+    
+    .skeleton-value {
+      height: 32px;
+      width: 40%;
+    }
+  </style>
+</head>
+<body>
+  <script src="js/env.js"></script>
+  <script src="js/client.js"></script>
+  <script type="module">
+    import { initNav } from './js/nav.js';
+    import { initTopBar } from './js/topbar.js';
+    initNav('dashboard');
+    initTopBar();
+  </script>
+
+  <!-- Main content -->
+  <main class="main-content">
+    <!-- Metric cards -->
+    <div class="metric-cards">
+      <div class="metric-card neomorphic-raised">
+        <div class="metric-label">Total Agents</div>
+        <div class="metric-value" id="total-agents">
+          <div class="skeleton skeleton-value"></div>
+        </div>
+        <div class="metric-change">+12 this week</div>
+      </div>
+      
+      <div class="metric-card neomorphic-raised">
+        <div class="metric-label">Txs Secured</div>
+        <div class="metric-value" id="txs-secured">
+          <div class="skeleton skeleton-value"></div>
+        </div>
+        <div class="metric-change">+8.2% vs last week</div>
+      </div>
+      
+      <div class="metric-card neomorphic-raised">
+        <div class="metric-label">ZK Success %</div>
+        <div class="metric-value" id="zk-success">
+          <div class="skeleton skeleton-value"></div>
+        </div>
+        <div class="metric-change">+0.3% improvement</div>
+      </div>
+      
+      <div class="metric-card neomorphic-raised">
+        <div class="metric-label">Gas Savings (ETH)</div>
+        <div class="metric-value" id="gas-savings">
+          <div class="skeleton skeleton-value"></div>
+        </div>
+        <div class="metric-change">67.5% avg reduction</div>
+      </div>
+      
+      <div class="metric-card neomorphic-raised">
+        <div class="metric-label">Insurance Pool ($)</div>
+        <div class="metric-value" id="insurance-pool">
+          <div class="skeleton skeleton-value"></div>
+        </div>
+        <div class="metric-change">$2.4M TVL</div>
+      </div>
+    </div>
+    
+    <!-- Content grid -->
+    <div class="content-grid">
+      <!-- Chart section -->
+      <div class="chart-section neomorphic-raised">
+        <h3 class="section-title">Transaction Security Timeline</h3>
+        <div class="chart-container">
+          <canvas id="timeline-chart"></canvas>
+        </div>
+      </div>
+      
+      <!-- Security layers panel -->
+      <div class="security-panel neomorphic-raised">
+        <h3 class="section-title">Security Layers</h3>
+        
+        <div class="security-item">
+          <div class="security-name">Smart Contract Scanner</div>
+          <div class="security-status">
+            <div class="status-dot active"></div>
+            <span>Active</span>
+          </div>
+        </div>
+        
+        <div class="security-item">
+          <div class="security-name">Multi-Sig Validator</div>
+          <div class="security-status">
+            <div class="status-dot active"></div>
+            <span id="council-quorum">84% QUORUM</span>
+          </div>
+        </div>
+        
+        <div class="security-item">
+          <div class="security-name">Risk Oracle</div>
+          <div class="security-status">
+            <div class="status-dot active"></div>
+            <span>Active • Updating</span>
+          </div>
+        </div>
+        
+        <div class="security-item">
+          <div class="security-name">Slashing Engine</div>
+          <div class="security-status">
+            <div class="status-dot" id="slashing-status"></div>
+            <span id="slashing-text">Standby</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Bottom row -->
+    <div class="bottom-row">
+      <!-- Council consensus gauge -->
+      <div class="gauge-section neomorphic-raised">
+        <div class="gauge-container">
+          <canvas id="consensus-gauge"></canvas>
+          <div class="gauge-value" id="consensus-value">84%</div>
+        </div>
+        <div>
+          <div class="gauge-label">Council Consensus</div>
+          <div style="font-size: 14px; color: #64748b; margin-top: 4px;">2-of-3 approval rate</div>
+        </div>
+      </div>
+      
+      <!-- ZK Proof Performance -->
+      <div class="performance-section neomorphic-raised">
+        <h3 class="section-title">ZK Proof Performance</h3>
+        
+        <div class="perf-item">
+          <div class="perf-label">
+            <span>Generation Time</span>
+            <span class="perf-value" id="gen-time">142ms</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: 45%;"></div>
+          </div>
+        </div>
+        
+        <div class="perf-item">
+          <div class="perf-label">
+            <span>Verification Time</span>
+            <span class="perf-value" id="verify-time">45ms</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: 25%;"></div>
+          </div>
+        </div>
+        
+        <div class="perf-item">
+          <div class="perf-label">
+            <span>Proof Size</span>
+            <span class="perf-value">192 bytes</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: 15%;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  
+  <script src="js/env.js"></script>
+  <script type="module">
+    import { INSURANCE_POOL_ABI } from './js/abis.js';
+    
+    const { supabase, provider, getContract, getSigner, timeAgo, truncate, toast, loadTopBar, setActiveNav, safeContractRead } = window.AG;
+    
+    // Initialize charts
+    let timelineChart, consensusGauge;
+    
+    async function initTimelineChart() {
+      const ctx = document.getElementById('timeline-chart').getContext('2d');
+      
+      if (timelineChart) {
+        timelineChart.destroy();
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('council_sessions')
+          .select('created_at')
+          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+          .order('created_at', { ascending: true });
+        
+        if (error) throw error;
+        
+        // Group by hour
+        const hourlyData = {};
+        data.forEach(row => {
+          const hour = new Date(row.created_at).getHours();
+          hourlyData[hour] = (hourlyData[hour] || 0) + 1;
+        });
+        
+        const labels = Array.from({ length: 24 }, (_, i) => `${i}:00`);
+        const values = labels.map((_, i) => hourlyData[i] || 0);
+        
+        timelineChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Transactions',
+              data: values,
+              backgroundColor: '#818cf8',
+              borderRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: { display: false }
+              },
+              x: {
+                grid: { display: false }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.error('Timeline chart error:', err);
+        // Show empty chart
+        timelineChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: Array.from({ length: 24 }, (_, i) => `${i}:00`),
+            datasets: [{
+              label: 'Transactions',
+              data: Array(24).fill(0),
+              backgroundColor: '#818cf8',
+              borderRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } }
+          }
+        });
+      }
+    }
+    
+    async function initConsensusGauge() {
+      const ctx = document.getElementById('consensus-gauge').getContext('2d');
+      
+      if (consensusGauge) {
+        consensusGauge.destroy();
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('council_sessions')
+          .select('consensus')
+          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+          .order('created_at', { ascending: false })
+          .limit(100);
+        
+        if (error) throw error;
+        
+        const consensusData = data.map(d => d.consensus || 0);
+        const avgConsensus = consensusData.reduce((a, b) => a + b, 0) / consensusData.length;
+        
+        let approvalRate = avgConsensus;
+        if (data && data.length > 0) {
+          const parsed = JSON.parse(data[0].consensus);
+          approvalRate = parsed.approval_rate || 84;
+        }
+        
+        const consensusEl = document.getElementById('consensus-value');
+        if (consensusEl) consensusEl.textContent = `${approvalRate}%`;
+        const quorumEl = document.getElementById('council-quorum');
+        if (quorumEl) quorumEl.textContent = `${approvalRate}% QUORUM`;
+        
+        consensusGauge = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            datasets: [{
+              data: [approvalRate, 100 - approvalRate],
+              backgroundColor: ['#6366f1', '#e8eaf0'],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            cutout: '75%',
+            plugins: { legend: { display: false }, tooltip: { enabled: false } }
+          }
+        });
+      } catch (err) {
+        console.error('Consensus gauge error:', err);
+        // Default gauge
+        consensusGauge = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            datasets: [{
+              data: [84, 16],
+              backgroundColor: ['#6366f1', '#e8eaf0'],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            cutout: '75%',
+            plugins: { legend: { display: false }, tooltip: { enabled: false } }
+          }
+        });
+      }
+    }
+    
+    async function loadMetrics() {
+      // Total Agents from contract
+      const agentRegistry = getContract(window.ENV_AGENT_REGISTRY, AGENT_REGISTRY_ABI);
+      const totalAgents = await safeContractRead(
+        () => agentRegistry.totalSupply(),
+        ethers.parseUnits('142', 0) // Mock: 142 agents
+      );
+      const totalAgentsEl = document.getElementById('total-agents');
+      if (totalAgentsEl) totalAgentsEl.textContent = totalAgents.toString();
+      
+      // Insurance Pool TVL
+      const insurancePool = getContract(window.ENV_INSURANCE_POOL, INSURANCE_POOL_ABI);
+      const tvl = await safeContractRead(
+        () => insurancePool.totalStaked(),
+        ethers.parseUnits('2400000', 6) // Mock: $2.4M
+      );
+      const tvlEl = document.getElementById('insurance-tvl');
+      if (tvlEl) tvlEl.textContent = fmtUSD(Number(tvl) / 1e6);
+      
+      // Council Quorum
+      const quorum = await safeContractRead(
+        () => insurancePool.quorum(),
+        ethers.parseUnits('84', 0) // Mock: 84% quorum
+      );
+      const quorumEl2 = document.getElementById('council-quorum');
+      if (quorumEl2) quorumEl2.textContent = `${Number(quorum)}% QUORUM`;
+      
+      try {
+        // Txs Secured from Supabase
+        const { count, error } = await supabase
+          .from('council_sessions')
+          .select('*', { count: 'exact', head: true })
+          .eq('approved', true);
+        
+        if (!error) {
+          const txsEl = document.getElementById('txs-secured');
+          if (txsEl) txsEl.textContent = count?.toLocaleString() || '--';
+        }
+      } catch (err) {
+        console.error('Txs secured error:', err);
+        const txsEl2 = document.getElementById('txs-secured');
+        if (txsEl2) txsEl2.textContent = '--';
+      }
+      
+      try {
+        // ZK Success % from Supabase
+        const { data, error } = await supabase
+          .from('council_sessions')
+          .select('approved');
+        
+        if (!error && data) {
+          const total = data.length;
+          const approved = data.filter(d => d.approved).length;
+          const successRate = total > 0 ? ((approved / total) * 100) : 0;
+          const safeRate = isNaN(successRate) || !isFinite(successRate) ? 0 : successRate.toFixed(1);
+          const zkEl = document.getElementById('zk-success');
+          if (zkEl) zkEl.textContent = `${safeRate}%`;
+        }
+      } catch (err) {
+        console.error('ZK success error:', err);
+        const zkEl2 = document.getElementById('zk-success');
+        if (zkEl2) zkEl2.textContent = '--';
+      }
+      
+      try {
+        // Gas Savings from Supabase
+        const { data, error } = await supabase
+          .from('aggregation_batches')
+          .select('gas_used, gas_saved_pct');
+        
+        if (!error && data && data.length > 0) {
+          const avgGasSaved = data.reduce((sum, d) => sum + ((d.gas_used || 0) * (d.gas_saved_pct || 0) / 100), 0) / data.length;
+          const ethSaved = avgGasSaved * 1e-9 * 1500;
+          const safeSaved = isNaN(ethSaved) || !isFinite(ethSaved) ? 0 : ethSaved.toFixed(2);
+          const gasEl = document.getElementById('gas-savings');
+          if (gasEl) gasEl.textContent = `${safeSaved} ETH`;
+        }
+      } catch (err) {
+        console.error('Gas savings error:', err);
+        const gasEl2 = document.getElementById('gas-savings');
+        if (gasEl2) gasEl2.textContent = '--';
+      }
+      
+      try {
+        // Insurance Pool from contract
+        const insurancePool = getContract(window.ENV_INSURANCE_POOL, INSURANCE_POOL_ABI);
+        const totalStaked = await safeContractRead(() => insurancePool.totalStaked(), 0);
+        const poolEl = document.getElementById('insurance-pool');
+        if (poolEl) poolEl.textContent = fmtUSD(Number(totalStaked) / 1e6);
+      } catch (err) {
+        console.error('Insurance pool error:', err);
+        const poolEl2 = document.getElementById('insurance-pool');
+        if (poolEl2) poolEl2.textContent = '--';
+      }
+      
+      try {
+        // DEFCON level from Supabase
+        const { data, error } = await supabase
+          .from('sentinel_alerts')
+          .select('defcon_level')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (!error && data) {
+          const defconMap = { 1: 'DEFCON-1', 2: 'DEFCON-2', 3: 'DEFCON-3', 4: 'DEFCON-4', 5: 'DEFCON-5' };
+          const defconEl = document.getElementById('defcon-level');
+          if (defconEl) defconEl.textContent = defconMap[data.defcon_level] || 'DEFCON-5';
+        }
+      } catch (err) {
+        console.error('DEFCON error:', err);
+      }
+      
+      try {
+        // Threats Blocked from Supabase
+        const { count, error } = await supabase
+          .from('cross_chain_freezes')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'PROPAGATED');
+        
+        if (!error) {
+          const threatsEl = document.getElementById('threats-blocked');
+          if (threatsEl) threatsEl.textContent = count?.toLocaleString() || '0';
+        }
+      } catch (err) {
+        console.error('Threats blocked error:', err);
+      }
+      
+      try {
+        // ZK Proof Performance from Supabase
+        const { data, error } = await supabase
+          .from('aggregation_batches')
+          .select('latency_ms')
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        if (!error && data && data.length > 0) {
+          const avgGenTime = data.reduce((sum, d) => sum + (d.latency_ms || 0), 0) / data.length;
+          const genEl = document.getElementById('gen-time');
+          if (genEl) genEl.textContent = `${Math.round(avgGenTime)}ms`;
+        }
+      } catch (err) {
+        console.error('ZK performance error:', err);
+      }
+      
+      try {
+        // Slashing Engine status
+        const insurancePool = getContract(window.ENV_INSURANCE_POOL, INSURANCE_POOL_ABI);
+        const totalSlashed = await safeContractRead(() => insurancePool.totalSlashed(), 0);
+        const isActive = totalSlashed > 0;
+        
+        document.getElementById('slashing-status').className = `status-dot ${isActive ? 'active' : 'standby'}`;
+        const slashEl = document.getElementById('slashing-text');
+        if (slashEl) slashEl.textContent = isActive ? 'Active' : 'Standby';
+      } catch (err) {
+        console.error('Slashing status error:', err);
+        document.getElementById('slashing-status').className = 'status-dot standby';
+        const slashEl2 = document.getElementById('slashing-text');
+        if (slashEl2) slashEl2.textContent = 'Standby';
+      }
+    }
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      setActiveNav();
+      loadTopBar();
+      initTimelineChart();
+      initConsensusGauge();
+      loadMetrics();
+    });
+  </script>
+</body>
+</html>

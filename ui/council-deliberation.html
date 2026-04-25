@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Silk Security — Council Deliberation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.1/ethers.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #e8eaf0;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+    
+    .neomorphic-raised {
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    .neomorphic-inset {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    .skeleton {
+      background: linear-gradient(90deg, #dcdee4 25%, #e8eaf0 50%, #dcdee4 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+    
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .skeleton-value {
+      height: 32px;
+      width: 60%;
+    }
+    
+    .error-state {
+      color: #dc2626;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .retry-btn {
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: none;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      color: #1e293b;
+      cursor: pointer;
+    }
+    
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 256px;
+      height: 100vh;
+      background: #e8eaf0;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 40px;
+    }
+    
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: #6366f1;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+    }
+    
+    .logo-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .nav-links {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .nav-link {
+      padding: 12px 16px;
+      border-radius: 12px;
+      text-decoration: none;
+      color: #64748b;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .nav-link:hover {
+      color: #6366f1;
+    }
+    
+    .nav-link.active {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      color: #6366f1;
+    }
+    
+    .sidebar-bottom {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .lock-btn {
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      color: #dc2626;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .lock-btn:hover {
+      box-shadow: 4px 4px 8px rgba(0,0,0,0.06), -4px -4px 8px rgba(255,255,255,0.5);
+    }
+    
+    .support-link {
+      text-align: center;
+      color: #64748b;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    
+    .main-content {
+      margin-left: 256px;
+      padding: 24px;
+    }
+    
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      gap: 16px;
+    }
+    
+    .branding {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .branding-icon {
+      width: 40px;
+      height: 40px;
+      background: #6366f1;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+    }
+    
+    .branding-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #64748b;
+      font-size: 18px;
+      transition: all 0.2s;
+    }
+    
+    .icon-btn:hover {
+      color: #6366f1;
+    }
+    
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #6366f1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+    }
+    
+    .page-header {
+      margin-bottom: 24px;
+    }
+    
+    .page-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    
+    .page-subtitle {
+      font-size: 14px;
+      color: #64748b;
+    }
+    
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.5fr;
+      gap: 16px;
+    }
+    
+    .left-column {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    .right-column {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    .card {
+      padding: 24px;
+    }
+    
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 16px;
+    }
+    
+    .proposal-detail {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    
+    .proposal-label {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .proposal-value {
+      font-size: 14px;
+      font-weight: 500;
+      color: #1e293b;
+    }
+    
+    .status-badge {
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .status-badge.clean {
+      background: #10b981;
+      color: white;
+    }
+    
+    .status-badge.pending {
+      background: #f59e0b;
+      color: white;
+    }
+    
+    .status-badge.blocked {
+      background: #dc2626;
+      color: white;
+    }
+    
+    .status-badge.flash {
+      animation: flashGreen 0.5s ease-in-out;
+    }
+    
+    @keyframes flashGreen {
+      0%, 100% { background: #10b981; }
+      50% { background: #34d399; box-shadow: 0 0 20px rgba(16, 185, 129, 0.5); }
+    }
+    
+    .consensus-display {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    
+    .consensus-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .vote-tally {
+      display: flex;
+      gap: 16px;
+      margin-top: 16px;
+    }
+    
+    .vote-count {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .vote-count.approve {
+      color: #10b981;
+    }
+    
+    .vote-count.reject {
+      color: #dc2626;
+    }
+    
+    .vote-count.pending {
+      color: #64748b;
+    }
+    
+    .vote-number {
+      font-size: 20px;
+      font-weight: 700;
+    }
+    
+    .vote-label {
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .pipeline-stages {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 16px;
+    }
+    
+    .stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+    }
+    
+    .stage-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #cbd5e1;
+      transition: all 0.3s;
+    }
+    
+    .stage-dot.active {
+      background: #6366f1;
+      box-shadow: 0 0 12px rgba(99, 102, 241, 0.5);
+      animation: pulse 1.5s infinite;
+    }
+    
+    .stage-dot.completed {
+      background: #10b981;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 12px rgba(99, 102, 241, 0.5); }
+      50% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.8); }
+    }
+    
+    .stage-label {
+      font-size: 10px;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+    
+    .stage-line {
+      flex: 1;
+      height: 2px;
+      background: #cbd5e1;
+      margin: 0 8px;
+    }
+    
+    .stage-line.completed {
+      background: #10b981;
+    }
+    
+    .agent-card {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: all 0.3s;
+    }
+    
+    .agent-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .agent-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    
+    .model-badge {
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #6366f1;
+      color: white;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    
+    .agent-status {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .agent-status.approve {
+      background: #10b981;
+      color: white;
+    }
+    
+    .agent-status.reject {
+      background: #dc2626;
+      color: white;
+    }
+    
+    .agent-status.deliberating {
+      background: #f59e0b;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .deliberating-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: white;
+      animation: pulse 1s infinite;
+    }
+    
+    .reasoning-block {
+      background: #1e1e1e;
+      border-radius: 8px;
+      padding: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #a5b4fc;
+      min-height: 80px;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+    
+    .confidence-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .confidence-label {
+      font-size: 10px;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+    
+    .confidence-bar {
+      flex: 1;
+      height: 6px;
+      border-radius: 3px;
+      background: #e8eaf0;
+      box-shadow: inset 2px 2px 4px rgba(0,0,0,0.06), inset -2px -2px 4px rgba(255,255,255,0.5);
+      overflow: hidden;
+    }
+    
+    .confidence-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.3s, background 0.3s;
+    }
+    
+    .confidence-fill.green {
+      background: #10b981;
+    }
+    
+    .confidence-fill.amber {
+      background: #f59e0b;
+    }
+    
+    .skeleton {
+      background: linear-gradient(90deg, #e8eaf0 25%, #f1f3f5 50%, #e8eaf0 75%);
+      background-size: 200% 100%;
+      animation: pulse 1.5s infinite;
+      border-radius: 4px;
+    }
+    
+    @keyframes pulse {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .skeleton-text {
+      height: 16px;
+      width: 60%;
+    }
+    
+    .skeleton-value {
+      height: 24px;
+      width: 40%;
+    }
+  </style>
+</head>
+<body>
+  <script src="js/env.js"></script>
+  <script src="js/client.js"></script>
+  <script type="module">
+    import { initNav } from './js/nav.js';
+    import { initTopBar } from './js/topbar.js';
+    initNav('council');
+    initTopBar();
+  </script>
+
+  <!-- Main content -->
+  <main class="main-content">
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+      <a href="council-deliberation.html" class="breadcrumb-back">← Back</a>
+      <span class="breadcrumb-separator">›</span>
+      <span class="breadcrumb-item">Council</span>
+      <span class="breadcrumb-separator">›</span>
+      <span class="breadcrumb-item active" id="session-id-breadcrumb">Session --</span>
+    </div>
+    
+    <!-- Page header -->
+    <div class="page-header">
+      <h1 class="page-title">Council Deliberation</h1>
+      <p class="page-subtitle">Monitoring multi-agent consensus protocol in real-time.</p>
+    </div>
+    
+    <!-- Content grid -->
+    <div class="content-grid">
+      <!-- Left column -->
+      <div class="left-column">
+        <!-- Transaction Proposal -->
+        <div class="card neomorphic-raised">
+          <h3 class="card-title">Transaction Proposal</h3>
+          
+          <div class="proposal-detail">
+            <div class="proposal-label">TX ID</div>
+            <div class="proposal-value" id="tx-id">
+              <div class="skeleton skeleton-text"></div>
+            </div>
+          </div>
+          
+          <div class="proposal-detail">
+            <div class="proposal-label">Status</div>
+            <div class="status-badge pending" id="proposal-status">PENDING</div>
+          </div>
+          
+          <div class="proposal-detail">
+            <div class="proposal-label">Amount</div>
+            <div class="proposal-value" id="proposal-amount">
+              <div class="skeleton skeleton-text"></div>
+            </div>
+          </div>
+          
+          <div class="proposal-detail">
+            <div class="proposal-label">Recipient</div>
+            <div class="proposal-value" id="proposal-recipient">
+              <div class="skeleton skeleton-text"></div>
+            </div>
+          </div>
+          
+          <div class="proposal-detail">
+            <div class="proposal-label">Reason</div>
+            <div class="proposal-value" id="proposal-reason">
+              <div class="skeleton skeleton-text"></div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Consensus Status -->
+        <div class="card neomorphic-raised">
+          <h3 class="card-title">Consensus Status</h3>
+          
+          <div class="consensus-display">
+            <div class="consensus-value" id="consensus-value">
+              <div class="skeleton skeleton-value"></div>
+            </div>
+            <div class="progress-bar" style="width: 150px; height: 8px;">
+              <div class="progress-fill" id="consensus-progress" style="width: 33%;"></div>
+            </div>
+          </div>
+          
+          <div class="vote-tally">
+            <div class="vote-count approve">
+              <span class="vote-number" id="approve-count">0</span>
+              <span class="vote-label">APPROVE</span>
+            </div>
+            <div class="vote-count reject">
+              <span class="vote-number" id="reject-count">0</span>
+              <span class="vote-label">REJECT</span>
+            </div>
+            <div class="vote-count pending">
+              <span class="vote-number" id="pending-count">3</span>
+              <span class="vote-label">PENDING</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- ZK Proof Pipeline -->
+        <div class="card neomorphic-raised">
+          <h3 class="card-title">ZK Proof Pipeline</h3>
+          
+          <div class="pipeline-stages">
+            <div class="stage">
+              <div class="stage-dot active" id="stage-ingest"></div>
+              <div class="stage-label">INGEST</div>
+            </div>
+            <div class="stage-line" id="line-1"></div>
+            <div class="stage">
+              <div class="stage-dot" id="stage-circuit"></div>
+              <div class="stage-label">CIRCUIT GEN</div>
+            </div>
+            <div class="stage-line" id="line-2"></div>
+            <div class="stage">
+              <div class="stage-dot" id="stage-prove"></div>
+              <div class="stage-label">PROVE</div>
+            </div>
+            <div class="stage-line" id="line-3"></div>
+            <div class="stage">
+              <div class="stage-dot" id="stage-verify"></div>
+              <div class="stage-label">VERIFY</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Right column - Council Chamber -->
+      <div class="right-column" id="council-chamber">
+        <div class="agent-card neomorphic-raised">
+          <div class="skeleton" style="height: 120px;"></div>
+        </div>
+        <div class="agent-card neomorphic-raised">
+          <div class="skeleton" style="height: 120px;"></div>
+        </div>
+        <div class="agent-card neomorphic-raised">
+          <div class="skeleton" style="height: 120px;"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+  
+  <script src="js/env.js"></script>
+  <script type="module">
+    import { UNDERWRITER_DAO_ABI } from './js/abis.js';
+    
+    const { supabase, provider, getContract, getSigner, timeAgo, truncate, toast, loadTopBar, setActiveNav, safeContractRead } = window.AG;
+    let currentSessionId = null;
+    let realtimeChannel = null;
+    
+    // Get session ID from URL or fetch latest
+    async function getSessionId() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionId = urlParams.get('session');
+      
+      if (sessionId) {
+        currentSessionId = sessionId;
+        return sessionId;
+      }
+      
+      // Fetch latest session
+      try {
+        const { data, error } = await supabase
+          .from('council_sessions')
+          .select('session_id')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (!error && data) {
+          currentSessionId = data.session_id;
+          return data.session_id;
+        }
+      } catch (err) {
+        console.error('Error fetching session:', err);
+      }
+      
+      return null;
+    }
+    
+    // Load transaction proposal
+    async function loadProposal(sessionId) {
+      try {
+        const { data, error } = await supabase
+          .from('council_sessions')
+          .select('*')
+          .eq('session_id', sessionId)
+          .single();
+        
+        if (!error && data) {
+          document.getElementById('tx-id').textContent = data.session_id?.slice(0, 16) + '...' || '--';
+          document.getElementById('proposal-amount').textContent = `${data.amount || 0} USDC`;
+          document.getElementById('proposal-recipient').textContent = truncate(data.recipient || '', 10);
+          document.getElementById('proposal-reason').textContent = data.reason || 'No reason provided';
+          
+          const statusBadge = document.getElementById('proposal-status');
+          statusBadge.className = 'status-badge';
+          if (data.approved === true) {
+            statusBadge.classList.add('clean');
+            statusBadge.textContent = 'CLEAN';
+          } else if (data.approved === false) {
+            statusBadge.classList.add('blocked');
+            statusBadge.textContent = 'BLOCKED';
+          } else {
+            statusBadge.classList.add('pending');
+            statusBadge.textContent = 'PENDING';
+          }
+        }
+      } catch (err) {
+        console.error('Proposal error:', err);
+      }
+    }
+    
+    // Load council votes
+    async function loadCouncilVotes(sessionId) {
+      try {
+        const { data, error } = await supabase
+          .from('council_votes')
+          .select('*')
+          .eq('session_id', sessionId)
+          .order('created_at', { ascending: true });
+        
+        if (!error && data) {
+          renderAgentCards(data);
+          updateConsensus(data);
+        }
+      } catch (err) {
+        console.error('Council votes error:', err);
+      }
+    }
+    
+    // Render agent cards
+    function renderAgentCards(votes) {
+      const container = document.getElementById('council-chamber');
+      
+      container.innerHTML = votes.map(vote => {
+        const decision = vote.decision?.toUpperCase();
+        const isDeliberating = !decision;
+        
+        return `
+          <div class="agent-card neomorphic-raised" data-id="${vote.id}">
+            <div class="agent-header">
+              <div class="agent-name">${vote.agent_role || 'Unknown Agent'}</div>
+              <div class="model-badge">${vote.model || 'Unknown Model'}</div>
+            </div>
+            <div class="agent-status ${isDeliberating ? 'deliberating' : decision.toLowerCase()}">
+              ${isDeliberating ? '<div class="deliberating-dot"></div>' : ''}
+              ${isDeliberating ? 'DELIBERATING' : decision}
+            </div>
+            <div class="reasoning-block">${vote.reasoning || 'Analyzing proposal...'}</div>
+            <div class="confidence-section">
+              <div class="confidence-label">CONFIDENCE</div>
+              <div class="confidence-bar">
+                <div class="confidence-fill ${isDeliberating ? 'amber' : 'green'}" style="width: ${vote.confidence || 50}%"></div>
+              </div>
+              <div style="font-size: 12px; font-weight: 600; color: #1e293b;">${vote.confidence || 50}%</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    // Update consensus
+    function updateConsensus(votes) {
+      const approveCount = votes.filter(v => v.decision?.toUpperCase() === 'APPROVE').length;
+      const rejectCount = votes.filter(v => v.decision?.toUpperCase() === 'REJECT').length;
+      const pendingCount = votes.filter(v => !v.decision).length;
+      
+      document.getElementById('approve-count').textContent = approveCount;
+      document.getElementById('reject-count').textContent = rejectCount;
+      document.getElementById('pending-count').textContent = pendingCount;
+      
+      const total = votes.length;
+      const progress = (approveCount / 3) * 100;
+      document.getElementById('consensus-progress').style.width = `${progress}%`;
+      document.getElementById('consensus-value').textContent = `${approveCount}/3 Votes Required`;
+      
+      // Auto-update proposal status if quorum reached
+      if (approveCount >= 2) {
+        const statusBadge = document.getElementById('proposal-status');
+        statusBadge.className = 'status-badge clean flash';
+        statusBadge.textContent = 'CLEAN';
+        setTimeout(() => statusBadge.classList.remove('flash'), 500);
+      }
+    }
+    
+    // Setup realtime subscription
+    function setupRealtime(sessionId) {
+      if (realtimeChannel) {
+        realtimeChannel.unsubscribe();
+      }
+      
+      realtimeChannel = supabase
+        .channel(`council-${sessionId}`)
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'council_votes',
+          filter: `session_id=eq.${sessionId}`
+        }, async (payload) => {
+          // Reload votes on any change
+          await loadCouncilVotes(sessionId);
+          
+          // If this was an UPDATE and session status changed, reload proposal
+          if (payload.eventType === 'UPDATE') {
+            await loadProposal(sessionId);
+          }
+        })
+        .subscribe();
+    }
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      setActiveNav();
+      loadTopBar();
+      getSessionId().then(() => {
+        loadProposal(currentSessionId);
+        loadCouncilVotes(currentSessionId);
+      });
+    });
+  </script>
+</body>
+</html>

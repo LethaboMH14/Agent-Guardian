@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guardian Prime — Vaccine Shield</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.1/ethers.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #e8eaf0;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+    
+    .neomorphic-raised {
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    .neomorphic-inset {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    .skeleton {
+      background: linear-gradient(90deg, #dcdee4 25%, #e8eaf0 50%, #dcdee4 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+    
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .skeleton-value {
+      height: 32px;
+      width: 60%;
+    }
+    
+    .error-state {
+      color: #dc2626;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .retry-btn {
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: none;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      color: #1e293b;
+      cursor: pointer;
+    }
+    
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 256px;
+      height: 100vh;
+      background: #e8eaf0;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+    }
+    
+    .sidebar-header {
+      margin-bottom: 32px;
+    }
+    
+    .sidebar-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    
+    .sidebar-version {
+      font-size: 12px;
+      color: #64748b;
+    }
+    
+    .new-proof-btn {
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #6366f1;
+      color: white;
+      border: none;
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: 6px 6px 12px rgba(99, 102, 241, 0.3);
+      transition: all 0.2s;
+      margin-bottom: 24px;
+    }
+    
+    .new-proof-btn:hover {
+      background: #4f46e5;
+    }
+    
+    .nav-links {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .nav-link {
+      padding: 12px 16px;
+      border-radius: 12px;
+      text-decoration: none;
+      color: #64748b;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .nav-link:hover {
+      color: #6366f1;
+    }
+    
+    .nav-link.active {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      color: #6366f1;
+    }
+    
+    .sidebar-bottom {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .lock-btn {
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      color: #dc2626;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .lock-btn:hover {
+      box-shadow: 4px 4px 8px rgba(0,0,0,0.06), -4px -4px 8px rgba(255,255,255,0.5);
+    }
+    
+    .support-link {
+      text-align: center;
+      color: #64748b;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    
+    .main-content {
+      margin-left: 256px;
+      padding: 24px;
+    }
+    
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      gap: 16px;
+    }
+    
+    .branding {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .branding-icon {
+      width: 40px;
+      height: 40px;
+      background: #6366f1;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+    }
+    
+    .branding-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #64748b;
+      font-size: 18px;
+      transition: all 0.2s;
+    }
+    
+    .icon-btn:hover {
+      color: #6366f1;
+    }
+    
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #6366f1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+    }
+    
+    .page-header {
+      margin-bottom: 24px;
+    }
+    
+    .page-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    
+    .page-subtitle {
+      font-size: 14px;
+      color: #64748b;
+    }
+    
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .card {
+      padding: 24px;
+    }
+    
+    .immunity-score {
+      font-size: 72px;
+      font-weight: 700;
+      color: #6366f1;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    
+    .immunity-label {
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 24px;
+    }
+    
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .stat-row:last-child {
+      border-bottom: none;
+    }
+    
+    .stat-label {
+      font-size: 14px;
+      color: #64748b;
+    }
+    
+    .stat-value {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    
+    .canvas-container {
+      position: relative;
+      height: 350px;
+    }
+    
+    .canvas-subtitle {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 8px;
+    }
+    
+    .tier-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .tier-card {
+      padding: 20px;
+      text-align: center;
+    }
+    
+    .tier-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    
+    .tier-count {
+      font-size: 36px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    
+    .tier-description {
+      font-size: 12px;
+      color: #64748b;
+    }
+    
+    .tier-soft .tier-count { color: #f59e0b; }
+    .tier-hard .tier-count { color: #dc2626; }
+    .tier-perm .tier-count { color: #991b1b; }
+    
+    .table-card {
+      padding: 24px;
+    }
+    
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 16px;
+    }
+    
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .table th {
+      text-align: left;
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 12px;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .table td {
+      padding: 12px;
+      font-size: 14px;
+      color: #1e293b;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .table tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .tier-badge {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .tier-badge.soft {
+      background: #f59e0b;
+      color: white;
+    }
+    
+    .tier-badge.hard {
+      background: #dc2626;
+      color: white;
+    }
+    
+    .tier-badge.perm {
+      background: #991b1b;
+      color: white;
+    }
+    
+    .slash-amount {
+      color: #dc2626;
+      font-weight: 600;
+    }
+    
+    .action-icon {
+      color: #64748b;
+      cursor: pointer;
+      font-size: 16px;
+      transition: color 0.2s;
+    }
+    
+    .action-icon:hover {
+      color: #6366f1;
+    }
+    
+    .bottom-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    
+    .chart-card {
+      padding: 24px;
+    }
+    
+    .chart-container {
+      height: 250px;
+    }
+    
+    .tooltip {
+      position: absolute;
+      background: #1e1e1e;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      pointer-events: none;
+      z-index: 1000;
+      display: none;
+    }
+    
+    .skeleton {
+      background: linear-gradient(90deg, #e8eaf0 25%, #f1f3f5 50%, #e8eaf0 75%);
+      background-size: 200% 100%;
+      animation: pulse 1.5s infinite;
+      border-radius: 4px;
+    }
+    
+    @keyframes pulse {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .skeleton-value {
+      height: 32px;
+      width: 60%;
+    }
+  </style>
+</head>
+<body>
+  <script src="js/env.js"></script>
+  <script src="js/client.js"></script>
+  <script type="module">
+    import { initNav } from './js/nav.js';
+    import { initTopBar } from './js/topbar.js';
+    initNav('vaccine-shield');
+    initTopBar();
+  </script>
+
+  <!-- Main content -->
+  <main class="main-content">
+    <!-- Page header -->
+    <div class="page-header">
+      <h1 class="page-title">VACCINE SHIELD</h1>
+      <p class="page-subtitle">Self-Immunizing Threat Defense Matrix</p>
+    </div>
+    
+    <!-- Content grid -->
+    <div class="content-grid">
+      <!-- Immunity Status -->
+      <div class="card neomorphic-raised">
+        <div class="immunity-score" id="immunity-score">
+          <div class="skeleton skeleton-value"></div>
+        </div>
+        <div class="immunity-label">Network threat resilience score</div>
+        
+        <div class="stat-row">
+          <div class="stat-label">Total Blacklisted</div>
+          <div class="stat-value" id="total-blacklisted">
+            <div class="skeleton skeleton-value"></div>
+          </div>
+        </div>
+        
+        <div class="stat-row">
+          <div class="stat-label">Recent Blocks (24h)</div>
+          <div class="stat-value" id="recent-blocks">
+            <div class="skeleton skeleton-value"></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- SMT Blacklist Scatter Plot -->
+      <div class="card neomorphic-raised">
+        <h3 class="section-title">Sparse Merkle Tree Blacklist</h3>
+        <div class="canvas-container">
+          <canvas id="scatter-canvas"></canvas>
+          <div class="tooltip" id="scatter-tooltip"></div>
+        </div>
+        <div class="canvas-subtitle">Visualizing level 6 depth fingerprint blocks</div>
+      </div>
+    </div>
+    
+    <!-- Tier cards -->
+    <div class="tier-cards">
+      <div class="tier-card neomorphic-raised tier-soft">
+        <div class="tier-label">SOFT TIER</div>
+        <div class="tier-count" id="soft-count">
+          <div class="skeleton skeleton-value"></div>
+        </div>
+        <div class="tier-description">Temporary cooldowns</div>
+      </div>
+      
+      <div class="tier-card neomorphic-raised tier-hard">
+        <div class="tier-label">HARD TIER</div>
+        <div class="tier-count" id="hard-count">
+          <div class="skeleton skeleton-value"></div>
+        </div>
+        <div class="tier-description">Requires manual review</div>
+      </div>
+      
+      <div class="tier-card neomorphic-raised tier-perm">
+        <div class="tier-label">PERMANENT TIER</div>
+        <div class="tier-count" id="perm-count">
+          <div class="skeleton skeleton-value"></div>
+        </div>
+        <div class="tier-description">Irrevocable network ban</div>
+      </div>
+    </div>
+    
+    <!-- Active Blacklist Registry -->
+    <div class="table-card neomorphic-raised" style="margin-bottom: 24px;">
+      <h3 class="section-title">Active Blacklist Registry</h3>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>DECISIONHASH</th>
+            <th>CONTEXTHASH</th>
+            <th>TIER</th>
+            <th>SLASH</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="blacklist-table">
+          <tr>
+            <td colspan="5"><div class="skeleton" style="height: 40px;"></div></td>
+          </tr>
+          <tr>
+            <td colspan="5"><div class="skeleton" style="height: 40px;"></div></td>
+          </tr>
+          <tr>
+            <td colspan="5"><div class="skeleton" style="height: 40px;"></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Bottom row -->
+    <div class="bottom-row">
+      <!-- Hamming Distance Map -->
+      <div class="chart-card neomorphic-raised">
+        <h3 class="section-title">Hamming Distance Map</h3>
+        <div class="canvas-container">
+          <canvas id="hamming-canvas"></canvas>
+          <div class="tooltip" id="hamming-tooltip"></div>
+        </div>
+      </div>
+      
+      <!-- Immunity Growth Timeline -->
+      <div class="chart-card neomorphic-raised">
+        <h3 class="section-title">Immunity Growth Timeline</h3>
+        <div class="chart-container">
+          <canvas id="growth-chart"></canvas>
+        </div>
+      </div>
+    </div>
+  </main>
+  
+  <script src="js/env.js"></script>
+  <script type="module">
+    const { supabase, timeAgo, truncate, toast, loadTopBar, setActiveNav } = window.AG;
+    
+    let scatterCanvas, hammingCanvas, growthChart;
+    let scatterData = [];
+    let hammingData = [];
+    
+    // Load immunity status
+    async function loadImmunityStatus() {
+      try {
+        const now = new Date().toISOString();
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        
+        const [totalResult, recentResult] = await Promise.all([
+          supabase
+            .from('vaccine_fingerprints')
+            .select('*', { count: 'exact', head: true })
+            .or('expires_at.gt.' + now + ',tier.eq.PERMANENT'),
+          supabase
+            .from('vaccine_fingerprints')
+            .select('*', { count: 'exact', head: true })
+            .gte('added_at', oneDayAgo)
+        ]);
+        
+        const total = totalResult.count || 0;
+        const recent = recentResult.count || 0;
+        
+        document.getElementById('total-blacklisted').textContent = total;
+        document.getElementById('recent-blocks').textContent = recent;
+        
+        // Immunity score
+        const score = total > 0 ? (1 - (recent / total)) * 100 : 100;
+        document.getElementById('immunity-score').textContent = `${score.toFixed(1)}%`;
+      } catch (err) {
+        console.error('Immunity status error:', err);
+        document.getElementById('immunity-score').textContent = '--%';
+        document.getElementById('total-blacklisted').textContent = '--';
+        document.getElementById('recent-blocks').textContent = '--';
+      }
+    }
+    
+    // Load tier counts
+    async function loadTierCounts() {
+      try {
+        const now = new Date().toISOString();
+        
+        const { data, error } = await supabase
+          .from('vaccine_fingerprints')
+          .select('tier')
+          .or('expires_at.gt.' + now + ',tier.eq.PERMANENT');
+        
+        if (!error && data) {
+          const soft = data.filter(d => d.tier === 'SOFT').length;
+          const hard = data.filter(d => d.tier === 'HARD').length;
+          const perm = data.filter(d => d.tier === 'PERMANENT').length;
+          
+          document.getElementById('soft-count').textContent = soft;
+          document.getElementById('hard-count').textContent = hard;
+          document.getElementById('perm-count').textContent = perm;
+        }
+      } catch (err) {
+        console.error('Tier counts error:', err);
+      }
+    }
+    
+    // Load scatter plot data
+    async function loadScatterData() {
+      try {
+        const { data, error } = await supabase
+          .from('vaccine_fingerprints')
+          .select('decision_hash, context_hash, tier, added_at')
+          .order('added_at', { ascending: false })
+          .limit(50);
+        
+        if (!error && data) {
+          scatterData = data;
+          renderScatterPlot();
+        }
+      } catch (err) {
+        console.error('Scatter data error:', err);
+      }
+    }
+    
+    // Render scatter plot
+    function renderScatterPlot() {
+      const canvas = document.getElementById('scatter-canvas');
+      const ctx = canvas.getContext('2d');
+      const container = canvas.parentElement;
+      
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+      
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      const colors = {
+        SOFT: 'rgba(245, 158, 11, 0.6)',
+        HARD: 'rgba(220, 38, 38, 0.8)',
+        PERMANENT: 'rgba(153, 27, 27, 1.0)'
+      };
+      
+      scatterData.forEach((item, i) => {
+        const x = (parseInt(item.decision_hash?.slice(0, 4) || '0', 16) % 1000) / 1000 * canvas.width;
+        const y = (parseInt(item.decision_hash?.slice(4, 8) || '0', 16) % 100) / 100 * canvas.height;
+        
+        ctx.beginPath();
+        ctx.arc(x, y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = colors[item.tier] || colors.SOFT;
+        ctx.fill();
+      });
+      
+      // Hover tooltip
+      canvas.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        
+        const tooltip = document.getElementById('scatter-tooltip');
+        let found = false;
+        
+        scatterData.forEach((item, i) => {
+          const x = (parseInt(item.decision_hash?.slice(0, 4) || '0', 16) % 1000) / 1000 * canvas.width;
+          const y = (parseInt(item.decision_hash?.slice(4, 8) || '0', 16) % 100) / 100 * canvas.height;
+          
+          const dist = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2);
+          if (dist < 10) {
+            tooltip.style.display = 'block';
+            tooltip.style.left = (e.clientX - rect.left + 10) + 'px';
+            tooltip.style.top = (e.clientY - rect.top - 30) + 'px';
+            tooltip.textContent = `${item.tier}: ${truncate(item.decision_hash || '', 8)}`;
+            found = true;
+          }
+        });
+        
+        if (!found) tooltip.style.display = 'none';
+      });
+    }
+    
+    // Load blacklist table
+    async function loadBlacklistTable() {
+      try {
+        const now = new Date().toISOString();
+        
+        const { data, error } = await supabase
+          .from('vaccine_fingerprints')
+          .select('*')
+          .in('tier', ['HARD', 'PERMANENT'])
+          .or('expires_at.gt.' + now + ',tier.eq.PERMANENT')
+          .order('added_at', { ascending: false })
+          .limit(20);
+        
+        if (!error && data) {
+          const tbody = document.getElementById('blacklist-table');
+          tbody.innerHTML = data.map(row => `
+            <tr>
+              <td>${truncate(row.decision_hash || '', 10)}</td>
+              <td>${truncate(row.context_hash || '', 10)}</td>
+              <td><span class="tier-badge ${row.tier === 'SOFT' ? 'soft' : row.tier === 'HARD' ? 'hard' : 'perm'}">${row.tier}</span></td>
+              <td class="slash-amount">${row.slash_amount || 0} ETH</td>
+              <td><span class="action-icon">👁️</span></td>
+            </tr>
+          `).join('');
+        }
+      } catch (err) {
+        console.error('Blacklist table error:', err);
+        document.getElementById('blacklist-table').innerHTML = '<tr><td colspan="5">Error loading blacklist</td></tr>';
+      }
+    }
+    
+    // Load hamming distance data
+    async function loadHammingData() {
+      try {
+        const { data, error } = await supabase
+          .from('vaccine_fingerprints')
+          .select('decision_hash')
+          .eq('tier', 'HARD')
+          .order('added_at', { ascending: false })
+          .limit(10);
+        
+        if (!error && data && data.length > 0) {
+          hammingData = data.map(d => d.decision_hash || '');
+          renderHammingMap();
+        }
+      } catch (err) {
+        console.error('Hamming data error:', err);
+      }
+    }
+    
+    // Compute hamming distance
+    function hammingDistance(hex1, hex2) {
+      const maxLen = Math.max(hex1.length, hex2.length);
+      let diff = 0;
+      for (let i = 0; i < maxLen; i++) {
+        if (hex1[i] !== hex2[i]) diff++;
+      }
+      return diff;
+    }
+    
+    // Render hamming map
+    function renderHammingMap() {
+      const canvas = document.getElementById('hamming-canvas');
+      const ctx = canvas.getContext('2d');
+      const container = canvas.parentElement;
+      
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+      
+      const n = hammingData.length;
+      const cellSize = Math.min(canvas.width, canvas.height) / n;
+      
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          const dist = hammingDistance(hammingData[i], hammingData[j]);
+          const maxDist = 16;
+          const ratio = Math.min(dist / maxDist, 1);
+          
+          // Red (0) to Green (8+)
+          const r = Math.round(220 * (1 - ratio));
+          const g = Math.round(38 + (217 * ratio));
+          const b = Math.round(38 + (217 * ratio));
+          
+          ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+          ctx.fillRect(j * cellSize, i * cellSize, cellSize - 1, cellSize - 1);
+        }
+      }
+      
+      // Hover tooltip
+      canvas.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        
+        const col = Math.floor(mouseX / cellSize);
+        const row = Math.floor(mouseY / cellSize);
+        
+        const tooltip = document.getElementById('hamming-tooltip');
+        
+        if (row < n && col < n) {
+          const dist = hammingDistance(hammingData[row], hammingData[col]);
+          tooltip.style.display = 'block';
+          tooltip.style.left = (e.clientX - rect.left + 10) + 'px';
+          tooltip.style.top = (e.clientY - rect.top - 30) + 'px';
+          tooltip.textContent = `Distance: ${dist}`;
+        } else {
+          tooltip.style.display = 'none';
+        }
+      });
+    }
+    
+    // Load growth timeline
+    async function loadGrowthTimeline() {
+      try {
+        const { data, error } = await supabase
+          .from('vaccine_fingerprints')
+          .select('added_at')
+          .order('added_at', { ascending: true });
+        
+        if (!error && data && data.length > 0) {
+          // Group by day
+          const daily = {};
+          data.forEach(d => {
+            const day = new Date(d.added_at).toISOString().split('T')[0];
+            daily[day] = (daily[day] || 0) + 1;
+          });
+          
+          const labels = Object.keys(daily).slice(-30);
+          const values = labels.map(l => daily[l]);
+          
+          // Cumulative sum
+          let cumulative = 0;
+          const cumulativeValues = values.map(v => {
+            cumulative += v;
+            return cumulative;
+          });
+          
+          const ctx = document.getElementById('growth-chart').getContext('2d');
+          
+          if (growthChart) {
+            growthChart.destroy();
+          }
+          
+          growthChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: labels.map(l => new Date(l).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+              datasets: [{
+                label: 'Total Immunity',
+                data: cumulativeValues,
+                borderColor: '#6366f1',
+                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                fill: true,
+                tension: 0.4
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                y: { beginAtZero: true, grid: { display: false } },
+                x: { grid: { display: false } }
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Growth timeline error:', err);
+      }
+    }
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      setActiveNav();
+      loadTopBar();
+      loadImmunityStatus();
+      loadTierCounts();
+      loadScatterData();
+      loadBlacklistTable();
+      loadHammingData();
+      loadGrowthTimeline();
+    });  
+      // Handle resize
+      window.addEventListener('resize', () => {
+        renderScatterPlot();
+        renderHammingMap();
+      });
+  </script>
+</body>
+</html>

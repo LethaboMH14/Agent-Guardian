@@ -1,0 +1,44 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+
+# Circuit build artifacts (too large for git)
+circuits/build/*.zkey
+circuits/build/*.ptau
+circuits/build/*.r1cs
+circuits/build/*.wasm
+
+# Hardhat
+cache
+artifacts
+typechain
+typechain-types
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/

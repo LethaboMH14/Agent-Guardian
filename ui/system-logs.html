@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentGuardian — System Logs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.1/ethers.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #e8eaf0;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+    
+    .neomorphic-raised {
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    .neomorphic-inset {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    .skeleton {
+      background: linear-gradient(90deg, #dcdee4 25%, #e8eaf0 50%, #dcdee4 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+    
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .skeleton-value {
+      height: 32px;
+      width: 60%;
+    }
+    
+    .error-state {
+      color: #dc2626;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .retry-btn {
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: none;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      color: #1e293b;
+      cursor: pointer;
+    }
+    
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 256px;
+      height: 100vh;
+      background: #e8eaf0;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 40px;
+    }
+    
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: #6366f1;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+    }
+    
+    .logo-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .nav-links {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .nav-link {
+      padding: 12px 16px;
+      border-radius: 12px;
+      text-decoration: none;
+      color: #64748b;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .nav-link:hover {
+      color: #6366f1;
+    }
+    
+    .nav-link.active {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      color: #6366f1;
+    }
+    
+    .sidebar-bottom {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .lock-btn {
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      color: #dc2626;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .lock-btn:hover {
+      box-shadow: 4px 4px 8px rgba(0,0,0,0.06), -4px -4px 8px rgba(255,255,255,0.5);
+    }
+    
+    .support-link {
+      text-align: center;
+      color: #64748b;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    
+    .main-content {
+      margin-left: 256px;
+      padding: 24px;
+    }
+    
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      gap: 16px;
+    }
+    
+    .search-input {
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: none;
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      width: 300px;
+      font-family: inherit;
+      color: #1e293b;
+    }
+    
+    .search-input::placeholder {
+      color: #94a3b8;
+    }
+    
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .defcon-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .defcon-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+    }
+    
+    .threats-counter {
+      font-size: 14px;
+      font-weight: 600;
+      color: #6366f1;
+    }
+    
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #64748b;
+      font-size: 18px;
+      transition: all 0.2s;
+    }
+    
+    .icon-btn:hover {
+      color: #6366f1;
+    }
+    
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #6366f1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+    }
+    
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+    
+    .page-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    
+    .page-subtitle {
+      font-size: 14px;
+      color: #64748b;
+    }
+    
+    .header-buttons {
+      display: flex;
+      gap: 12px;
+    }
+    
+    .btn {
+      padding: 12px 20px;
+      border-radius: 12px;
+      border: none;
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .btn-raised {
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      color: #1e293b;
+    }
+    
+    .btn-raised:hover {
+      box-shadow: 4px 4px 8px rgba(0,0,0,0.06), -4px -4px 8px rgba(255,255,255,0.5);
+    }
+    
+    .stat-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr 2fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .stat-card {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .stat-label {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 12px;
+      background: #10b981;
+      color: white;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: white;
+      animation: pulse 1s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .trend-badge {
+      font-size: 12px;
+      color: #10b981;
+      font-weight: 500;
+    }
+    
+    .filter-chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    
+    .chip {
+      padding: 8px 16px;
+      border-radius: 20px;
+      border: none;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      color: #64748b;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .chip:hover {
+      color: #6366f1;
+    }
+    
+    .chip.active {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      color: #6366f1;
+    }
+    
+    .activity-stream {
+      padding: 24px;
+    }
+    
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 16px;
+    }
+    
+    .log-entry {
+      display: flex;
+      gap: 16px;
+      padding: 16px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      margin-bottom: 12px;
+      border-left: 4px solid transparent;
+      transition: all 0.2s;
+    }
+    
+    .log-entry:hover {
+      box-shadow: 4px 4px 8px rgba(0,0,0,0.06), -4px -4px 8px rgba(255,255,255,0.5);
+    }
+    
+    .log-entry.critical {
+      border-left-color: #dc2626;
+    }
+    
+    .log-entry.warn {
+      border-left-color: #f59e0b;
+    }
+    
+    .log-entry.info {
+      border-left-color: #7c3aed;
+    }
+    
+    .log-entry.fade-in {
+      animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .log-timestamp {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #64748b;
+      min-width: 140px;
+    }
+    
+    .log-content {
+      flex: 1;
+    }
+    
+    .log-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    
+    .severity-badge {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .severity-badge.critical {
+      background: #dc2626;
+      color: white;
+    }
+    
+    .severity-badge.warn {
+      background: #f59e0b;
+      color: white;
+    }
+    
+    .severity-badge.info {
+      background: #7c3aed;
+      color: white;
+    }
+    
+    .log-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    
+    .log-description {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    
+    .view-details {
+      color: #6366f1;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    
+    .view-details:hover {
+      text-decoration: underline;
+    }
+    
+    .skeleton {
+      background: linear-gradient(90deg, #e8eaf0 25%, #f1f3f5 50%, #e8eaf0 75%);
+      background-size: 200% 100%;
+      animation: pulse 1.5s infinite;
+      border-radius: 4px;
+    }
+    
+    @keyframes pulse {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    /* Modal */
+    dialog {
+      border: none;
+      border-radius: 16px;
+      background: #e8eaf0;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+      padding: 24px;
+      max-width: 800px;
+      width: 90%;
+      max-height: 80vh;
+    }
+    
+    dialog::backdrop {
+      background: rgba(0,0,0,0.5);
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #64748b;
+    }
+    
+    .modal-content {
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+    
+    .modal-content pre {
+      background: #1e1e1e;
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      margin: 0;
+    }
+    
+    .modal-content code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <script src="js/env.js"></script>
+  <script src="js/client.js"></script>
+  <script type="module">
+    import { initNav } from './js/nav.js';
+    import { initTopBar } from './js/topbar.js';
+    initNav('system-logs');
+    initTopBar();
+  </script>
+
+  <!-- Main content -->
+  <main class="main-content">
+    <!-- Page header -->
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">System Logs</h1>
+        <p class="page-subtitle">Real-time audit trail and system events across all agent networks.</p>
+      </div>
+      <div class="header-buttons">
+        <button class="btn btn-raised" id="filter-btn">
+          <span>🔍</span> Filter
+        </button>
+        <button class="btn btn-raised" id="export-btn">
+          <span>📥</span> Export
+        </button>
+      </div>
+    </div>
+    
+    <!-- Stat cards -->
+    <div class="stat-cards">
+      <div class="stat-card neomorphic-raised">
+        <div class="stat-label">Events/Sec</div>
+        <div class="stat-value">
+          <span id="events-per-sec">0</span>
+          <span class="live-badge"><div class="live-dot"></div>LIVE</span>
+        </div>
+      </div>
+      
+      <div class="stat-card neomorphic-raised">
+        <div class="stat-label">Critical Alerts</div>
+        <div class="stat-value" id="critical-alerts">
+          <div class="skeleton skeleton-value"></div>
+        </div>
+        <div class="trend-badge">+12% vs last hour</div>
+      </div>
+      
+      <div class="stat-card neomorphic-raised">
+        <div class="stat-label">Quick Filters</div>
+        <div class="filter-chips">
+          <button class="chip active" data-filter="all">All Sources</button>
+          <button class="chip" data-filter="api">API Gateway</button>
+          <button class="chip" data-filter="auth">Auth Service</button>
+          <button class="chip" data-filter="agent">Agents</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Activity stream -->
+    <div class="activity-stream neomorphic-raised">
+      <h3 class="section-title">Recent Activity Stream</h3>
+      <div id="log-entries">
+        <div class="skeleton" style="height: 80px; margin-bottom: 12px;"></div>
+        <div class="skeleton" style="height: 80px; margin-bottom: 12px;"></div>
+        <div class="skeleton" style="height: 80px; margin-bottom: 12px;"></div>
+      </div>
+    </div>
+  </main>
+  
+  <!-- Details modal -->
+  <dialog id="details-modal">
+    <div class="modal-header">
+      <h3 class="modal-title">Event Details</h3>
+      <button class="modal-close" id="modal-close">×</button>
+    </div>
+    <div class="modal-content">
+      <pre><code id="modal-json"></code></pre>
+    </div>
+  </dialog>
+  
+  <script src="js/env.js"></script>
+  <script type="module">
+    const { supabase, timeAgo, truncate, toast, loadTopBar, setActiveNav } = window.AG;
+    
+    let activityData = [];
+    let currentFilter = 'all';
+    let eventCount = 0;
+    let eventHistory = [];
+    
+    // Load critical alerts
+    async function loadCriticalAlerts() {
+      try {
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+        const { count, error } = await supabase
+          .from('sentinel_alerts')
+          .select('*', { count: 'exact', head: true })
+          .gte('severity', 2)
+          .gte('created_at', oneHourAgo);
+        
+        if (!error) {
+          document.getElementById('critical-alerts').textContent = count || 0;
+        }
+      } catch (err) {
+        console.error('Critical alerts error:', err);
+        document.getElementById('critical-alerts').textContent = '--';
+      }
+    }
+    
+    // Load activity stream
+    async function loadActivityStream() {
+      try {
+        const [alerts, sessions, freezes] = await Promise.all([
+          supabase.from('sentinel_alerts').select('*').order('created_at', { ascending: false }).limit(20),
+          supabase.from('council_sessions').select('*').order('created_at', { ascending: false }).limit(20),
+          supabase.from('cross_chain_freezes').select('*').order('created_at', { ascending: false }).limit(10)
+        ]);
+        
+        const mapped = [];
+        
+        // Map alerts
+        alerts.data?.forEach(row => {
+          const severityMap = { 3: 'critical', 2: 'warn', 1: 'info' };
+          mapped.push({
+            id: row.id,
+            timestamp: row.created_at,
+            severity: severityMap[row.severity] || 'info',
+            title: row.alert_type || 'Alert',
+            description: row.message || 'No description',
+            source: 'sentinel',
+            data: row
+          });
+        });
+        
+        // Map sessions
+        sessions.data?.forEach(row => {
+          mapped.push({
+            id: row.id,
+            timestamp: row.created_at,
+            severity: row.approved ? 'info' : 'warn',
+            title: row.approved ? 'Agent Deployment Successful' : 'Agent Action Blocked',
+            description: `Agent: ${truncate(row.agent, 8)} | Recipient: ${truncate(row.recipient, 8)} | Amount: ${row.amount}`,
+            source: 'council',
+            data: row
+          });
+        });
+        
+        // Map freezes
+        freezes.data?.forEach(row => {
+          mapped.push({
+            id: row.id,
+            timestamp: row.created_at,
+            severity: row.status === 'PROPAGATED' ? 'critical' : 'warn',
+            title: 'Cross-Chain Freeze Propagated',
+            description: `Agent: ${truncate(row.agent_address, 8)} | Source: ${row.source_chain} | Destinations: ${row.destination_chains?.join(', ')}`,
+            source: 'crosschain',
+            data: row
+          });
+        });
+        
+        // Sort by timestamp
+        mapped.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        
+        activityData = mapped.slice(0, 50);
+        renderActivityStream();
+      } catch (err) {
+        console.error('Activity stream error:', err);
+        document.getElementById('log-entries').innerHTML = '<p style="color: #64748b;">Error loading logs</p>';
+      }
+    }
+    
+    // Render activity stream
+    function renderActivityStream() {
+      const container = document.getElementById('log-entries');
+      const filtered = currentFilter === 'all' 
+        ? activityData 
+        : activityData.filter(item => {
+            if (currentFilter === 'api') return item.source === 'council';
+            if (currentFilter === 'auth') return item.source === 'crosschain';
+            if (currentFilter === 'agent') return item.source === 'sentinel';
+            return true;
+          });
+      
+      container.innerHTML = filtered.map(item => `
+        <div class="log-entry ${item.severity} fade-in" data-id="${item.id}">
+          <div class="log-timestamp">${timeAgo(item.timestamp)}</div>
+          <div class="log-content">
+            <div class="log-header">
+              <span class="severity-badge ${item.severity}">${item.severity}</span>
+              <span class="log-title">${item.title}</span>
+            </div>
+            <div class="log-description">${item.description}</div>
+            <a class="view-details" data-id="${item.id}">View Details</a>
+          </div>
+        </div>
+      `).join('');
+      
+      // Add click handlers for View Details
+      container.querySelectorAll('.view-details').forEach(link => {
+        link.addEventListener('click', (e) => {
+          const id = e.target.dataset.id;
+          const item = activityData.find(d => d.id == id);
+          if (item) showDetails(item);
+        });
+      });
+    }
+    
+    // Show details modal
+    function showDetails(item) {
+      const modal = document.getElementById('details-modal');
+      const jsonCode = document.getElementById('modal-json');
+      jsonCode.textContent = JSON.stringify(item.data, null, 2);
+      hljs.highlightElement(jsonCode);
+      modal.showModal();
+    }
+    
+    // Realtime subscription
+    function setupRealtime() {
+      const channel = supabase
+        .channel('activity-stream')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'council_sessions' }, (payload) => {
+          handleRealtimeEvent('council', payload.new);
+        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'cross_chain_freezes' }, (payload) => {
+          handleRealtimeEvent('crosschain', payload.new);
+        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sentinel_alerts' }, (payload) => {
+          handleRealtimeEvent('sentinel', payload.new);
+        })
+        .subscribe();
+      
+      return channel;
+    }
+    
+    function handleRealtimeEvent(source, data) {
+      eventCount++;
+      eventHistory.push(Date.now());
+      
+      // Clean old events (>5 seconds)
+      eventHistory = eventHistory.filter(t => Date.now() - t < 5000);
+      
+      let mapped;
+      if (source === 'council') {
+        mapped = {
+          id: data.id,
+          timestamp: data.created_at,
+          severity: data.approved ? 'info' : 'warn',
+          title: data.approved ? 'Agent Deployment Successful' : 'Agent Action Blocked',
+          description: `Agent: ${truncate(data.agent, 8)} | Recipient: ${truncate(data.recipient, 8)} | Amount: ${data.amount}`,
+          source: 'council',
+          data: data
+        };
+      } else if (source === 'crosschain') {
+        mapped = {
+          id: data.id,
+          timestamp: data.created_at,
+          severity: data.status === 'PROPAGATED' ? 'critical' : 'warn',
+          title: 'Cross-Chain Freeze Propagated',
+          description: `Agent: ${truncate(data.agent_address, 8)} | Source: ${data.source_chain}`,
+          source: 'crosschain',
+          data: data
+        };
+      } else {
+        const severityMap = { 3: 'critical', 2: 'warn', 1: 'info' };
+        mapped = {
+          id: data.id,
+          timestamp: data.created_at,
+          severity: severityMap[data.severity] || 'info',
+          title: data.alert_type || 'Alert',
+          description: data.message || 'No description',
+          source: 'sentinel',
+          data: data
+        };
+      }
+      
+      activityData.unshift(mapped);
+      activityData = activityData.slice(0, 50);
+      renderActivityStream();
+    }
+    
+    // Update events/sec counter
+    function updateEventsPerSec() {
+      const now = Date.now();
+      eventHistory = eventHistory.filter(t => now - t < 5000);
+      document.getElementById('events-per-sec').textContent = eventHistory.length;
+    }
+    
+    // Filter chips
+    document.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentFilter = chip.dataset.filter;
+        renderActivityStream();
+      });
+    });
+    
+    // Export to CSV
+    document.getElementById('export-btn').addEventListener('click', async () => {
+      try {
+        const { data, error } = await supabase
+          .from('sentinel_alerts')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(1000);
+        
+        if (error) throw error;
+        
+        const headers = Object.keys(data[0] || {}).join(',');
+        const rows = data.map(row => Object.values(row).join(','));
+        const csv = [headers, ...rows].join('\n');
+        
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `system-logs-${Date.now()}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error('Export error:', err);
+        alert('Export failed');
+      }
+    });
+    
+    // Modal close
+    document.getElementById('modal-close').addEventListener('click', () => {
+      document.getElementById('details-modal').close();
+    });
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      setActiveNav();
+      loadTopBar();
+      loadCriticalAlerts();
+      loadActivityStream();
+      setupRealtime();
+      setInterval(updateEventsPerSec, 1000);
+    });
+  </script>
+</body>
+</html>

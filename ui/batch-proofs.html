@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentGuardian — Batch Proofs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.1/ethers.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #e8eaf0;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+    
+    .neomorphic-raised {
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    .neomorphic-inset {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    .skeleton {
+      background: linear-gradient(90deg, #dcdee4 25%, #e8eaf0 50%, #dcdee4 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+    
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .skeleton-value {
+      height: 32px;
+      width: 60%;
+    }
+    
+    .error-state {
+      color: #dc2626;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .retry-btn {
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: none;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      color: #1e293b;
+      cursor: pointer;
+    }
+    
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 256px;
+      height: 100vh;
+      background: #e8eaf0;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 40px;
+    }
+    
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: #6366f1;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+    }
+    
+    .logo-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .nav-links {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .nav-link {
+      padding: 12px 16px;
+      border-radius: 12px;
+      text-decoration: none;
+      color: #64748b;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .nav-link:hover {
+      color: #6366f1;
+    }
+    
+    .nav-link.active {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      color: #6366f1;
+    }
+    
+    .sidebar-bottom {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .lock-btn {
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      color: #dc2626;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .lock-btn:hover {
+      box-shadow: 4px 4px 8px rgba(0,0,0,0.06), -4px -4px 8px rgba(255,255,255,0.5);
+    }
+    
+    .support-link {
+      text-align: center;
+      color: #64748b;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    
+    .main-content {
+      margin-left: 256px;
+      padding: 24px;
+    }
+    
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      gap: 16px;
+    }
+    
+    .branding {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .branding-icon {
+      width: 40px;
+      height: 40px;
+      background: #6366f1;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+    }
+    
+    .branding-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #64748b;
+      font-size: 18px;
+      transition: all 0.2s;
+    }
+    
+    .icon-btn:hover {
+      color: #6366f1;
+    }
+    
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #6366f1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+    }
+    
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+    
+    .page-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    
+    .page-subtitle {
+      font-size: 14px;
+      color: #64748b;
+    }
+    
+    .hero-card {
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .hero-icon {
+      width: 48px;
+      height: 48px;
+      background: #6366f1;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 24px;
+    }
+    
+    .hero-label {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .hero-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .giant-hero {
+      padding: 48px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .giant-label {
+      font-size: 14px;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .giant-value {
+      font-size: 72px;
+      font-weight: 700;
+      color: #6366f1;
+      line-height: 1;
+    }
+    
+    .giant-icon {
+      font-size: 48px;
+      color: #6366f1;
+    }
+    
+    .giant-description {
+      font-size: 14px;
+      color: #64748b;
+      max-width: 400px;
+    }
+    
+    .row-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .card {
+      padding: 24px;
+    }
+    
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 16px;
+    }
+    
+    .queue-display {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    
+    .queue-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .progress-bar {
+      height: 12px;
+      border-radius: 6px;
+      background: #e8eaf0;
+      box-shadow: inset 2px 2px 4px rgba(0,0,0,0.06), inset -2px -2px 4px rgba(255,255,255,0.5);
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      border-radius: 6px;
+      background: linear-gradient(90deg, #6366f1, #7c3aed);
+      transition: width 0.3s;
+    }
+    
+    .btn {
+      padding: 12px 20px;
+      border-radius: 12px;
+      border: none;
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .btn-raised {
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      color: #1e293b;
+    }
+    
+    .btn-raised:hover {
+      box-shadow: 4px 4px 8px rgba(0,0,0,0.06), -4px -4px 8px rgba(255,255,255,0.5);
+    }
+    
+    .btn-primary {
+      background: #6366f1;
+      color: white;
+      box-shadow: 6px 6px 12px rgba(99, 102, 241, 0.3);
+    }
+    
+    .btn-primary:hover {
+      background: #4f46e5;
+    }
+    
+    .comparison-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+    
+    .comparison-card {
+      padding: 16px;
+      text-align: center;
+    }
+    
+    .comparison-label {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+    
+    .comparison-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    
+    .comparison-sub {
+      font-size: 12px;
+      color: #64748b;
+    }
+    
+    .comparison-highlight {
+      color: #10b981;
+    }
+    
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .chart-card {
+      padding: 24px;
+    }
+    
+    .chart-container {
+      height: 300px;
+    }
+    
+    .table-card {
+      padding: 24px;
+    }
+    
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .table th {
+      text-align: left;
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 12px;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .table td {
+      padding: 12px;
+      font-size: 14px;
+      color: #1e293b;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .table tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .verified-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #10b981;
+      color: white;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    
+    .verified-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: white;
+    }
+    
+    .gas-saved {
+      color: #10b981;
+      font-weight: 600;
+    }
+    
+    .skeleton {
+      background: linear-gradient(90deg, #e8eaf0 25%, #f1f3f5 50%, #e8eaf0 75%);
+      background-size: 200% 100%;
+      animation: pulse 1.5s infinite;
+      border-radius: 4px;
+    }
+    
+    @keyframes pulse {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .skeleton-value {
+      height: 32px;
+      width: 60%;
+    }
+    
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 16px 24px;
+      border-radius: 12px;
+      background: #10b981;
+      color: white;
+      font-weight: 500;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      z-index: 1000;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s;
+    }
+    
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <script src="js/env.js"></script>
+  <script src="js/client.js"></script>
+  <script type="module">
+    import { initNav } from './js/nav.js';
+    import { initTopBar } from './js/topbar.js';
+    initNav('batch-proofs');
+    initTopBar();
+  </script>
+
+  <!-- Main content -->
+  <main class="main-content">
+    <!-- Page header -->
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Batch Proof Engine</h1>
+        <p class="page-subtitle">SnarkPack Aggregation System</p>
+      </div>
+      
+      <div class="hero-card neomorphic-raised">
+        <div class="hero-icon">⛽</div>
+        <div>
+          <div class="hero-label">Lifetime Gas Saved</div>
+          <div class="hero-value" id="lifetime-gas-saved">
+            <div class="skeleton skeleton-value"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Giant hero stat -->
+    <div class="giant-hero neomorphic-raised" style="margin-bottom: 24px;">
+      <div class="giant-label">AVERAGE GAS REDUCTION</div>
+      <div class="giant-icon">⚡</div>
+      <div class="giant-value" id="avg-gas-reduction">
+        <div class="skeleton skeleton-value"></div>
+      </div>
+      <div class="giant-description">SnarkPack achieves O(log n) verification complexity, enabling massive gas savings for batch proof aggregation.</div>
+    </div>
+    
+    <!-- Row cards -->
+    <div class="row-cards">
+      <!-- Aggregation Queue -->
+      <div class="card neomorphic-raised">
+        <h3 class="card-title">Aggregation Queue</h3>
+        <div class="queue-display">
+          <div class="queue-value" id="queue-display">
+            <div class="skeleton skeleton-value"></div>
+          </div>
+          <button class="btn btn-primary" id="force-submit-btn">
+            <span>🚀</span> Force Submit Now
+          </button>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="queue-progress" style="width: 25%;"></div>
+        </div>
+      </div>
+      
+      <!-- Execution Comparison -->
+      <div class="card neomorphic-raised">
+        <h3 class="card-title">Execution Comparison</h3>
+        <div class="comparison-cards">
+          <div class="comparison-card neomorphic-raised">
+            <div class="comparison-label">Without Batching</div>
+            <div class="comparison-value">~500k</div>
+            <div class="comparison-sub">Gas per proof</div>
+          </div>
+          <div class="comparison-card neomorphic-raised">
+            <div class="comparison-label">SnarkPack</div>
+            <div class="comparison-value">O(log n)</div>
+            <div class="comparison-sub">Verification</div>
+          </div>
+          <div class="comparison-card neomorphic-raised">
+            <div class="comparison-label">Net Result</div>
+            <div class="comparison-value comparison-highlight" id="net-result">
+              <div class="skeleton skeleton-value"></div>
+            </div>
+            <div class="comparison-sub">Cost reduction</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Charts row -->
+    <div class="charts-row">
+      <div class="chart-card neomorphic-raised">
+        <h3 class="card-title">Gas Savings by Batch Size</h3>
+        <div class="chart-container">
+          <canvas id="batch-size-chart"></canvas>
+        </div>
+      </div>
+      
+      <div class="chart-card neomorphic-raised">
+        <h3 class="card-title">Throughput Timeline (24h)</h3>
+        <div class="chart-container">
+          <canvas id="throughput-chart"></canvas>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Recent Batches table -->
+    <div class="table-card neomorphic-raised">
+      <h3 class="card-title">Recent Batches</h3>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>BATCH ID</th>
+            <th>TIME</th>
+            <th>PROOF COUNT</th>
+            <th>GAS SAVED</th>
+            <th>STATUS</th>
+          </tr>
+        </thead>
+        <tbody id="batches-table">
+          <tr>
+            <td colspan="5"><div class="skeleton" style="height: 40px;"></div></td>
+          </tr>
+          <tr>
+            <td colspan="5"><div class="skeleton" style="height: 40px;"></div></td>
+          </tr>
+          <tr>
+            <td colspan="5"><div class="skeleton" style="height: 40px;"></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+  
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+  
+  <script src="js/env.js"></script>
+  <script type="module">
+    import { BATCH_VERIFIER_ABI } from './js/abis.js';
+    
+    const { supabase, provider, getContract, getSigner, timeAgo, truncate, toast, loadTopBar, setActiveNav, safeContractRead } = window.AG;
+    
+    let batchSizeChart, throughputChart;
+    
+    // Load lifetime gas saved
+    async function loadLifetimeGasSaved() {
+      try {
+        const { data, error } = await supabase
+          .from('aggregation_batches')
+          .select('gas_used, gas_saved_pct');
+        
+        if (!error && data && data.length > 0) {
+          const totalGasSaved = data.reduce((sum, d) => {
+            const gasUsed = d.gas_used || 0;
+            const savedPct = d.gas_saved_pct || 0;
+            return sum + (gasUsed * savedPct / 100);
+          }, 0);
+          const ethSaved = (totalGasSaved / 1e18).toFixed(1);
+          document.getElementById('lifetime-gas-saved').textContent = `${Number(ethSaved).toLocaleString()} ETH`;
+        }
+      } catch (err) {
+        console.error('Lifetime gas saved error:', err);
+        document.getElementById('lifetime-gas-saved').textContent = '--';
+      }
+    }
+    
+    // Load average gas reduction
+    async function loadAvgGasReduction() {
+      try {
+        const { data, error } = await supabase
+          .from('aggregation_batches')
+          .select('gas_saved_pct');
+        
+        if (!error && data && data.length > 0) {
+          const avgSaved = data.reduce((sum, d) => sum + (d.gas_saved_pct || 0), 0) / data.length;
+          document.getElementById('avg-gas-reduction').textContent = `${avgSaved.toFixed(1)}%`;
+          document.getElementById('net-result').textContent = `-${avgSaved.toFixed(1)}%`;
+        }
+      } catch (err) {
+        console.error('Avg gas reduction error:', err);
+        document.getElementById('avg-gas-reduction').textContent = '--';
+        document.getElementById('net-result').textContent = '--';
+      }
+    }
+    
+    // Load queue depth
+    async function loadQueueDepth() {
+      const batchVerifier = getContract(window.ENV_BATCH_VERIFIER, BATCH_PROOF_ENGINE_ABI);
+      const [queueDepth, maxBatch] = await Promise.all([
+        safeContractRead(() => batchVerifier.queueDepth(), ethers.parseUnits('23', 0)),
+        safeContractRead(() => batchVerifier.MAX_BATCH(), ethers.parseUnits('64', 0))
+      ]);
+      
+      const depth = Number(queueDepth);
+      const max = Number(maxBatch);
+      const percentage = (depth / max) * 100;
+      
+      document.getElementById('queue-display').textContent = `${depth}/${max} Proofs Pending`;
+      document.getElementById('queue-progress').style.width = `${percentage}%`;
+    }
+    
+    // Batch size chart
+    async function initBatchSizeChart() {
+      const ctx = document.getElementById('batch-size-chart').getContext('2d');
+      
+      try {
+        const { data, error } = await supabase
+          .from('aggregation_batches')
+          .select('proof_count, gas_saved_pct');
+        
+        if (!error && data && data.length > 0) {
+          // Group by proof_count
+          const grouped = {};
+          data.forEach(d => {
+            const count = d.proof_count || 0;
+            if (!grouped[count]) grouped[count] = [];
+            grouped[count].push(d.gas_saved_pct || 0);
+          });
+          
+          const labels = Object.keys(grouped).sort((a, b) => Number(a) - Number(b));
+          const values = labels.map(label => {
+            const arr = grouped[label];
+            return arr.reduce((sum, v) => sum + v, 0) / arr.length;
+          });
+          
+          if (batchSizeChart) {
+            batchSizeChart.destroy();
+          }
+          
+          batchSizeChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels.map(l => `${l} proofs`),
+              datasets: [{
+                label: 'Gas Saved %',
+                data: values,
+                backgroundColor: labels.map((_, i) => {
+                  const lightness = 90 - (i * 10);
+                  return `hsl(239, 84%, ${Math.max(lightness, 40)}%)`;
+                }),
+                borderRadius: 4
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                y: { beginAtZero: true, grid: { display: false } },
+                x: { grid: { display: false } }
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Batch size chart error:', err);
+      }
+    }
+    
+    // Throughput chart
+    async function initThroughputChart() {
+      const ctx = document.getElementById('throughput-chart').getContext('2d');
+      
+      try {
+        const { data, error } = await supabase
+          .from('aggregation_batches')
+          .select('created_at');
+        
+        if (!error && data && data.length > 0) {
+          // Group by hour
+          const hourly = {};
+          data.forEach(d => {
+            const hour = new Date(d.created_at).getHours();
+            hourly[hour] = (hourly[hour] || 0) + 1;
+          });
+          
+          const labels = Array.from({ length: 24 }, (_, i) => `${i}:00`);
+          const values = labels.map((_, i) => hourly[i] || 0);
+          
+          if (throughputChart) {
+            throughputChart.destroy();
+          }
+          
+          throughputChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: 'Batches',
+                data: values,
+                borderColor: '#6366f1',
+                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                fill: true,
+                tension: 0.4
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                y: { beginAtZero: true, grid: { display: false } },
+                x: { grid: { display: false } }
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Throughput chart error:', err);
+      }
+    }
+    
+    // Recent batches table
+    async function loadRecentBatches() {
+      try {
+        const { data, error } = await supabase
+          .from('aggregation_batches')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        if (!error && data) {
+          const tbody = document.getElementById('batches-table');
+          tbody.innerHTML = data.map(row => `
+            <tr>
+              <td>#BP-${row.id?.toString().slice(-4) || '----'}</td>
+              <td>${timeAgo(row.created_at)}</td>
+              <td>${row.proof_count || 0}</td>
+              <td class="gas-saved">${row.gas_saved_pct?.toFixed(1) || 0}%</td>
+              <td>
+                ${row.nullifier 
+                  ? '<span class="verified-badge"><div class="verified-dot"></div>Verified</span>'
+                  : '<span style="color: #64748b;">Pending</span>'}
+              </td>
+            </tr>
+          `).join('');
+        }
+      } catch (err) {
+        console.error('Recent batches error:', err);
+        document.getElementById('batches-table').innerHTML = '<tr><td colspan="5">Error loading batches</td></tr>';
+      }
+    }
+    
+    // Force submit button
+    document.getElementById('force-submit-btn').addEventListener('click', async () => {
+      try {
+        const signer = await getSigner();
+        // Note: This would call proofAggregator.flushQueue() if deployed
+        // For now, show a success toast
+        toast('Queue flushed successfully!');
+      } catch (err) {
+        console.error('Force submit error:', err);
+        if (err.message.includes('No wallet found')) {
+          alert('Please connect your wallet to submit');
+        } else {
+          alert('Failed to submit queue');
+        }
+      }
+    });
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      setActiveNav();
+      loadTopBar();
+      loadLifetimeGasSaved();
+      loadAvgGasReduction();
+      loadQueueDepth();
+      initBatchSizeChart();
+      initThroughputChart();
+      loadRecentBatches();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Silk Security — Agent Registry</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.1/ethers.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #e8eaf0;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+    
+    .neomorphic-raised {
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    .neomorphic-inset {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    .skeleton {
+      background: linear-gradient(90deg, #dcdee4 25%, #e8eaf0 50%, #dcdee4 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+    
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .skeleton-value {
+      height: 32px;
+      width: 60%;
+    }
+    
+    .error-state {
+      color: #dc2626;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .retry-btn {
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: none;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      color: #1e293b;
+      cursor: pointer;
+    }
+    
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 256px;
+      height: 100vh;
+      background: #e8eaf0;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 40px;
+    }
+    
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: #6366f1;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+    }
+    
+    .logo-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .nav-links {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .nav-link {
+      padding: 12px 16px;
+      border-radius: 12px;
+      text-decoration: none;
+      color: #64748b;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .nav-link:hover {
+      color: #6366f1;
+    }
+    
+    .nav-link.active {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      color: #6366f1;
+    }
+    
+    .sidebar-bottom {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .lock-btn {
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      color: #dc2626;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .lock-btn:hover {
+      box-shadow: 4px 4px 8px rgba(0,0,0,0.06), -4px -4px 8px rgba(255,255,255,0.5);
+    }
+    
+    .support-link {
+      text-align: center;
+      color: #64748b;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    
+    .main-content {
+      margin-left: 256px;
+      padding: 24px;
+    }
+    
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      gap: 16px;
+    }
+    
+    .branding {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .branding-icon {
+      width: 40px;
+      height: 40px;
+      background: #6366f1;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+    }
+    
+    .branding-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #64748b;
+      font-size: 18px;
+      transition: all 0.2s;
+    }
+    
+    .icon-btn:hover {
+      color: #6366f1;
+    }
+    
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #6366f1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+    }
+    
+    .breadcrumb {
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 16px;
+    }
+    
+    .breadcrumb span {
+      color: #6366f1;
+    }
+    
+    .header-grid {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .agent-card {
+      padding: 24px;
+      display: flex;
+      gap: 20px;
+    }
+    
+    .agent-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 20px;
+      background: #6366f1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 32px;
+      font-weight: 700;
+    }
+    
+    .agent-info {
+      flex: 1;
+    }
+    
+    .agent-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    
+    .agent-name {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .active-badge {
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #10b981;
+      color: white;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .agent-wallet {
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    
+    .agent-description {
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 16px;
+    }
+    
+    .agent-actions {
+      display: flex;
+      gap: 12px;
+    }
+    
+    .btn {
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: none;
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn-raised {
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      color: #1e293b;
+    }
+    
+    .btn-raised:hover {
+      box-shadow: 4px 4px 8px rgba(0,0,0,0.06), -4px -4px 8px rgba(255,255,255,0.5);
+    }
+    
+    .btn-danger {
+      background: #dc2626;
+      color: white;
+    }
+    
+    .btn-danger:hover {
+      background: #b91c1c;
+    }
+    
+    .reputation-card {
+      padding: 24px;
+      text-align: center;
+    }
+    
+    .reputation-label {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+    }
+    
+    .gauge-container {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 16px;
+      position: relative;
+    }
+    
+    .gauge-svg {
+      transform: rotate(-90deg);
+    }
+    
+    .gauge-bg {
+      fill: none;
+      stroke: #e8eaf0;
+      stroke-width: 10;
+    }
+    
+    .gauge-fill {
+      fill: none;
+      stroke: #6366f1;
+      stroke-width: 10;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.5s ease;
+    }
+    
+    .gauge-value {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 24px;
+      font-weight: 700;
+      color: #6366f1;
+    }
+    
+    .trust-level {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .trust-level.excellent { color: #10b981; }
+    .trust-level.good { color: #f59e0b; }
+    .trust-level.risk { color: #dc2626; }
+    
+    .tab-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+    
+    .tab {
+      padding: 12px 20px;
+      border-radius: 12px;
+      border: none;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      font-family: inherit;
+      font-weight: 500;
+      font-size: 14px;
+      color: #64748b;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .tab:hover {
+      color: #6366f1;
+    }
+    
+    .tab.active {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      color: #6366f1;
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    .metric-cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .metric-card {
+      padding: 20px;
+    }
+    
+    .metric-label {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    
+    .metric-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    
+    .metric-badge {
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .metric-badge.positive { color: #10b981; }
+    .metric-badge.negative { color: #dc2626; }
+    
+    .charts-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .chart-card {
+      padding: 24px;
+    }
+    
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 16px;
+    }
+    
+    .chart-container {
+      height: 250px;
+    }
+    
+    .table-card {
+      padding: 24px;
+    }
+    
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .table th {
+      text-align: left;
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 12px;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .table td {
+      padding: 12px;
+      font-size: 14px;
+      color: #1e293b;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .table tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .verified-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #10b981;
+      color: white;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    
+    .pending-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #f59e0b;
+      color: white;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    
+    .clean-status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 40px;
+      text-align: center;
+      justify-content: center;
+    }
+    
+    .clean-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: #10b981;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 32px;
+    }
+    
+    .clean-text {
+      font-size: 18px;
+      font-weight: 600;
+      color: #10b981;
+    }
+    
+    .skeleton {
+      background: linear-gradient(90deg, #e8eaf0 25%, #f1f3f5 50%, #e8eaf0 75%);
+      background-size: 200% 100%;
+      animation: pulse 1.5s infinite;
+      border-radius: 4px;
+    }
+    
+    @keyframes pulse {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .skeleton-value {
+      height: 32px;
+      width: 60%;
+    }
+    
+    /* Modal */
+    dialog {
+      border: none;
+      border-radius: 16px;
+      background: #e8eaf0;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+      padding: 24px;
+      max-width: 400px;
+    }
+    
+    dialog::backdrop {
+      background: rgba(0,0,0,0.5);
+    }
+    
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 16px;
+    }
+    
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 16px 24px;
+      border-radius: 12px;
+      background: #10b981;
+      color: white;
+      font-weight: 500;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      z-index: 1000;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s;
+    }
+    
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <script src="js/env.js"></script>
+  <script src="js/client.js"></script>
+  <script type="module">
+    import { initNav } from './js/nav.js';
+    import { initTopBar } from './js/topbar.js';
+    initNav('agents');
+    initTopBar();
+  </script>
+
+  <!-- Main content -->
+  <main class="main-content">
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+      <a href="agent-registry.html" class="breadcrumb-back">← Back</a>
+      <span class="breadcrumb-separator">›</span>
+      <span class="breadcrumb-item">Agents</span>
+      <span class="breadcrumb-separator">›</span>
+      <span class="breadcrumb-item active" id="agent-name-breadcrumb">NEXUS-7</span>
+    </div>
+    
+    <!-- Header grid -->
+    <div class="header-grid">
+      <!-- Agent card -->
+      <div class="agent-card neomorphic-raised">
+        <div class="agent-avatar" id="agent-avatar">N7</div>
+        <div class="agent-info">
+          <div class="agent-header">
+            <div class="agent-name" id="agent-name">
+              <div class="skeleton skeleton-value"></div>
+            </div>
+            <span class="active-badge">ACTIVE</span>
+          </div>
+          <div class="agent-wallet" id="agent-wallet">
+            <div class="skeleton skeleton-value"></div>
+          </div>
+          <div class="agent-description" id="agent-description">
+            <div class="skeleton" style="height: 16px; width: 80%;"></div>
+          </div>
+          <div class="agent-actions">
+            <button class="btn btn-danger" id="suspend-btn">Suspend Agent</button>
+            <button class="btn btn-raised">Explorer</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Reputation card -->
+      <div class="reputation-card neomorphic-raised">
+        <div class="reputation-label">Reputation Score</div>
+        <div class="gauge-container">
+          <svg class="gauge-svg" width="120" height="120">
+            <circle class="gauge-bg" cx="60" cy="60" r="50"/>
+            <circle class="gauge-fill" id="reputation-gauge" cx="60" cy="60" r="50" 
+              stroke-dasharray="314" stroke-dashoffset="314"/>
+          </svg>
+          <div class="gauge-value" id="reputation-value">--</div>
+        </div>
+        <div class="trust-level" id="trust-level">--</div>
+      </div>
+    </div>
+    
+    <!-- Tab bar -->
+    <div class="tab-bar">
+      <button class="tab active" data-tab="overview">Overview</button>
+      <button class="tab" data-tab="zk-proofs">ZK Proofs</button>
+      <button class="tab" data-tab="council-history">Council History</button>
+      <button class="tab" data-tab="vaccine-status">Vaccine Status</button>
+      <button class="tab" data-tab="configuration">Configuration</button>
+    </div>
+    
+    <!-- Overview tab -->
+    <div class="tab-content active" id="overview">
+      <!-- Metric cards -->
+      <div class="metric-cards">
+        <div class="metric-card neomorphic-raised">
+          <div class="metric-label">Total Transactions</div>
+          <div class="metric-value" id="total-tx">
+            <div class="skeleton skeleton-value"></div>
+          </div>
+          <div class="metric-badge positive">+12%</div>
+        </div>
+        
+        <div class="metric-card neomorphic-raised">
+          <div class="metric-label">ZK Verified</div>
+          <div class="metric-value" id="zk-verified">
+            <div class="skeleton skeleton-value"></div>
+          </div>
+          <div class="metric-badge positive">+5%</div>
+        </div>
+        
+        <div class="metric-card neomorphic-raised">
+          <div class="metric-label">Council Approvals</div>
+          <div class="metric-value" id="council-approvals">
+            <div class="skeleton skeleton-value"></div>
+          </div>
+        </div>
+        
+        <div class="metric-card neomorphic-raised">
+          <div class="metric-label">Escalations</div>
+          <div class="metric-value" id="escalations">
+            <div class="skeleton skeleton-value"></div>
+          </div>
+          <div class="metric-badge negative">-2%</div>
+        </div>
+      </div>
+      
+      <!-- Charts row -->
+      <div class="charts-row">
+        <div class="chart-card neomorphic-raised">
+          <h3 class="section-title">30-Day Volume (USDC)</h3>
+          <div class="chart-container">
+            <canvas id="volume-chart"></canvas>
+          </div>
+        </div>
+        
+        <div class="chart-card neomorphic-raised">
+          <h3 class="section-title">Security Vector</h3>
+          <div class="chart-container">
+            <canvas id="radar-chart"></canvas>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Execution Logs -->
+      <div class="table-card neomorphic-raised">
+        <h3 class="section-title">Recent Execution Logs</h3>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>TX Hash</th>
+              <th>Action</th>
+              <th>ZK Status</th>
+              <th>Value</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody id="execution-logs">
+            <tr>
+              <td colspan="5"><div class="skeleton" style="height: 40px;"></div></td>
+            </tr>
+            <tr>
+              <td colspan="5"><div class="skeleton" style="height: 40px;"></div></td>
+            </tr>
+            <tr>
+              <td colspan="5"><div class="skeleton" style="height: 40px;"></div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <!-- ZK Proofs tab -->
+    <div class="tab-content" id="zk-proofs">
+      <div class="table-card neomorphic-raised">
+        <h3 class="section-title">ZK Proof History</h3>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Batch ID</th>
+              <th>Proof Count</th>
+              <th>Gas Saved</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody id="zk-proofs-table">
+            <tr>
+              <td colspan="4"><div class="skeleton" style="height: 40px;"></div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <!-- Vaccine Status tab -->
+    <div class="tab-content" id="vaccine-status">
+      <div class="table-card neomorphic-raised">
+        <div class="clean-status" id="vaccine-status-content">
+          <div class="clean-icon">✓</div>
+          <div class="clean-text">Clean — No blacklisted fingerprints</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Council History tab -->
+    <div class="tab-content" id="council-history">
+      <div class="table-card neomorphic-raised">
+        <h3 class="section-title">Council Voting History</h3>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Session ID</th>
+              <th>Decision</th>
+              <th>Consensus</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody id="council-history-table">
+            <tr>
+              <td colspan="4"><div class="skeleton" style="height: 40px;"></div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <!-- Configuration tab -->
+    <div class="tab-content" id="configuration">
+      <div class="card neomorphic-raised" style="padding: 24px;">
+        <h3 class="section-title">Agent Configuration</h3>
+        <p style="color: #64748b;">Configuration options coming soon.</p>
+      </div>
+    </div>
+  </main>
+  
+  <!-- Suspend modal -->
+  <dialog id="suspend-modal">
+    <h3 class="modal-title">Suspend Agent</h3>
+    <p style="color: #64748b; margin-bottom: 16px;">Are you sure you want to suspend this agent? This action will temporarily halt all agent operations.</p>
+    <div class="modal-actions">
+      <button class="btn btn-raised" id="cancel-suspend">Cancel</button>
+      <button class="btn btn-danger" id="confirm-suspend">Suspend</button>
+    </div>
+  </dialog>
+  
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+  
+  <script src="js/env.js"></script>
+  <script type="module">
+    import { AGENT_REGISTRY_ABI } from './js/abis.js';
+    
+    const { supabase, provider, getContract, getSigner, timeAgo, truncate, toast, loadTopBar, setActiveNav, safeContractRead } = window.AG;
+    
+    let currentAgent = null;
+    let volumeChart, radarChart;
+    
+    // Get agent from URL or latest
+    async function getAgentAddress() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const agentAddr = urlParams.get('agent');
+      
+      if (agentAddr) {
+        currentAgent = agentAddr;
+        return agentAddr;
+      }
+      
+      // Fetch latest agent
+      try {
+        const { data, error } = await supabase
+          .from('council_sessions')
+          .select('agent')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (!error && data) {
+          currentAgent = data.agent;
+          return data.agent;
+        }
+      } catch (err) {
+        console.error('Error fetching agent:', err);
+      }
+      
+      return null;
+    }
+    
+    // Load agent metadata
+    async function loadAgentMetadata(agentAddr) {
+      const agentRegistry = getContract(window.ENV_AGENT_REGISTRY, AGENT_REGISTRY_ABI);
+      const totalSupply = await safeContractRead(
+        () => agentRegistry.totalSupply(),
+        ethers.parseUnits('142', 0)
+      );
+      
+      // For now, use placeholder data
+      const agentName = agentAddr ? `AGENT-${agentAddr.slice(0, 6)}` : 'NEXUS-7';
+      document.getElementById('agent-name').textContent = agentName;
+      document.getElementById('agent-name-breadcrumb').textContent = agentName;
+      document.getElementById('agent-wallet').textContent = agentAddr ? truncate(agentAddr, 10) : '0x1234...5678';
+      document.getElementById('agent-avatar').textContent = agentName.slice(0, 2).toUpperCase();
+      document.getElementById('agent-description').textContent = 'Autonomous AI agent operating on the Arc network with advanced ZK proof capabilities.';
+    }
+    
+    // Load reputation
+    async function loadReputation(agentAddr) {
+      try {
+        // Derive from council_sessions success rate
+        const { data, error } = await supabase
+          .from('council_sessions')
+          .select('approved')
+          .eq('agent', agentAddr);
+        
+        if (!error && data && data.length > 0) {
+          const total = data.length;
+          const approved = data.filter(d => d.approved).length;
+          const score = Math.round((approved / total) * 1000);
+          
+          document.getElementById('reputation-value').textContent = score;
+          
+          // Animate gauge
+          const gaugeFill = document.getElementById('reputation-gauge');
+          const circumference = 314;
+          const offset = circumference - (score / 1000) * circumference;
+          setTimeout(() => {
+            gaugeFill.style.strokeDashoffset = offset;
+          }, 100);
+          
+          // Trust level
+          const trustLevel = document.getElementById('trust-level');
+          if (score > 800) {
+            trustLevel.textContent = 'Trust Level: Excellent';
+            trustLevel.className = 'trust-level excellent';
+          } else if (score >= 600) {
+            trustLevel.textContent = 'Trust Level: Good';
+            trustLevel.className = 'trust-level good';
+          } else {
+            trustLevel.textContent = 'Trust Level: At Risk';
+            trustLevel.className = 'trust-level risk';
+          }
+        }
+      } catch (err) {
+        console.error('Reputation error:', err);
+      }
+    }
+    
+    // Load metrics
+    async function loadMetrics(agentAddr) {
+      try {
+        const { data, error } = await supabase
+          .from('council_sessions')
+          .select('*')
+          .eq('agent', agentAddr);
+        
+        if (!error && data) {
+          const total = data.length;
+          const zkVerified = data.filter(d => d.approved).length;
+          const councilApprovals = data.filter(d => d.consensus).length;
+          const escalations = data.filter(d => d.consensus?.includes('ESCALATE')).length;
+          
+          document.getElementById('total-tx').textContent = total;
+          document.getElementById('zk-verified').textContent = zkVerified;
+          document.getElementById('council-approvals').textContent = councilApprovals;
+          document.getElementById('escalations').textContent = escalations;
+        }
+      } catch (err) {
+        console.error('Metrics error:', err);
+      }
+    }
+    
+    // Load volume chart
+    async function loadVolumeChart(agentAddr) {
+      try {
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        
+        const { data, error } = await supabase
+          .from('council_sessions')
+          .select('created_at, amount')
+          .eq('agent', agentAddr)
+          .gte('created_at', thirtyDaysAgo)
+          .order('created_at', { ascending: true });
+        
+        if (!error && data && data.length > 0) {
+          // Group by day
+          const daily = {};
+          data.forEach(d => {
+            const day = new Date(d.created_at).toISOString().split('T')[0];
+            const amount = parseFloat(d.amount) || 0;
+            daily[day] = (daily[day] || 0) + amount;
+          });
+          
+          const labels = Object.keys(daily);
+          const values = labels.map(l => daily[l]);
+          
+          const ctx = document.getElementById('volume-chart').getContext('2d');
+          
+          if (volumeChart) {
+            volumeChart.destroy();
+          }
+          
+          volumeChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: labels.map(l => new Date(l).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+              datasets: [{
+                label: 'Volume',
+                data: values,
+                borderColor: '#6366f1',
+                backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                fill: true,
+                tension: 0.4
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                y: { beginAtZero: true, grid: { display: false } },
+                x: { grid: { display: false } }
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Volume chart error:', err);
+      }
+    }
+    
+    // Load radar chart
+    async function loadRadarChart(agentAddr) {
+      try {
+        const { data, error } = await supabase
+          .from('council_sessions')
+          .select('approved, consensus')
+          .eq('agent', agentAddr);
+        
+        if (!error && data && data.length > 0) {
+          const total = data.length;
+          const approved = data.filter(d => d.approved).length;
+          const integrity = (approved / total) * 100;
+          const logic = data.filter(d => d.consensus).length / total * 100;
+          const latency = 85; // Placeholder
+          const dataQuality = 90; // Placeholder
+          
+          const ctx = document.getElementById('radar-chart').getContext('2d');
+          
+          if (radarChart) {
+            radarChart.destroy();
+          }
+          
+          radarChart = new Chart(ctx, {
+            type: 'radar',
+            data: {
+              labels: ['Integrity', 'Logic', 'Latency', 'Data'],
+              datasets: [{
+                label: 'Security Vector',
+                data: [integrity, logic, latency, dataQuality],
+                borderColor: '#7c3aed',
+                backgroundColor: 'rgba(124, 58, 237, 0.3)',
+                fill: true
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                r: {
+                  beginAtZero: true,
+                  max: 100,
+                  grid: { display: false }
+                }
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Radar chart error:', err);
+      }
+    }
+    
+    // Load execution logs
+    async function loadExecutionLogs(agentAddr) {
+      try {
+        const { data, error } = await supabase
+          .from('council_sessions')
+          .select('*')
+          .eq('agent', agentAddr)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        if (!error && data) {
+          const tbody = document.getElementById('execution-logs');
+          tbody.innerHTML = data.map(row => `
+            <tr>
+              <td><a href="council-deliberation.html?session=${row.session_id}" style="color: #6366f1; text-decoration: none;">${truncate(row.session_id || '', 10)}</a></td>
+              <td>${row.reason || 'Transfer'}</td>
+              <td>
+                ${row.approved 
+                  ? '<span class="verified-badge">✓ VERIFIED</span>'
+                  : '<span class="pending-badge">⏳ PENDING ZK</span>'}
+              </td>
+              <td>${row.amount || 0} USDC</td>
+              <td>${timeAgo(row.created_at)}</td>
+            </tr>
+          `).join('');
+        }
+      } catch (err) {
+        console.error('Execution logs error:', err);
+      }
+    }
+    
+    // Load ZK proofs
+    async function loadZKProofs(agentAddr) {
+      try {
+        // Step 1: get batch_ids for this agent
+        const { data: participations } = await supabase
+          .from('agent_batch_participations')
+          .select('batch_id')
+          .eq('agent_address', agentAddr)
+          .order('created_at', { ascending: false })
+          .limit(20);
+
+        const batchIds = (participations || []).map(p => p.batch_id);
+
+        // Step 2: get batch details
+        let batches = [];
+        if (batchIds.length > 0) {
+          const { data } = await supabase
+            .from('aggregation_batches')
+            .select('*')
+            .in('batch_id', batchIds)
+            .order('created_at', { ascending: false })
+            .limit(10);
+          batches = data || [];
+        }
+
+        if (batches.length > 0) {
+          const tbody = document.getElementById('zk-proofs-table');
+          tbody.innerHTML = batches.map(row => `
+            <tr>
+              <td>#BP-${row.batch_id?.toString().slice(-4) || '----'}</td>
+              <td>${row.proof_count || 0}</td>
+              <td>${row.gas_saved_pct?.toFixed(1) || 0}%</td>
+              <td>${timeAgo(row.created_at)}</td>
+            </tr>
+          `).join('');
+        } else {
+          const tbody = document.getElementById('zk-proofs-table');
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b;">No ZK proofs found</td></tr>';
+        }
+      } catch (err) {
+        console.error('ZK proofs error:', err);
+      }
+    }
+    
+    // Load vaccine status
+    async function loadVaccineStatus(agentAddr) {
+      try {
+        const { data, error } = await supabase
+          .from('vaccine_fingerprints')
+          .select('*')
+          .eq('agent_address', agentAddr);
+        
+        const content = document.getElementById('vaccine-status-content');
+        
+        if (!error && data && data.length > 0) {
+          content.innerHTML = `
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Tier</th>
+                  <th>Decision Hash</th>
+                  <th>Added At</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${data.map(row => `
+                  <tr>
+                    <td><span class="tier-badge ${row.tier === 'SOFT' ? 'soft' : row.tier === 'HARD' ? 'hard' : 'perm'}">${row.tier}</span></td>
+                    <td>${truncate(row.decision_hash || '', 10)}</td>
+                    <td>${timeAgo(row.added_at)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          `;
+        }
+      } catch (err) {
+        console.error('Vaccine status error:', err);
+      }
+    }
+    
+    // Load council history
+    async function loadCouncilHistory(agentAddr) {
+      try {
+        const { data, error } = await supabase
+          .from('council_sessions')
+          .select('*')
+          .eq('agent', agentAddr)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        if (!error && data) {
+          const tbody = document.getElementById('council-history-table');
+          tbody.innerHTML = data.map(row => `
+            <tr>
+              <td><a href="council-deliberation.html?session=${row.session_id}" style="color: #6366f1; text-decoration: none;">${truncate(row.session_id || '', 10)}</a></td>
+              <td>${row.approved ? 'APPROVED' : 'REJECTED'}</td>
+              <td>${row.consensus || 'Pending'}</td>
+              <td>${timeAgo(row.created_at)}</td>
+            </tr>
+          `).join('');
+        }
+      } catch (err) {
+        console.error('Council history error:', err);
+      }
+    }
+    
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        
+        tab.classList.add('active');
+        const tabId = tab.dataset.tab;
+        document.getElementById(tabId).classList.add('active');
+      });
+    });
+    
+    // Suspend modal
+    const suspendModal = document.getElementById('suspend-modal');
+    document.getElementById('suspend-btn').addEventListener('click', () => {
+      suspendModal.showModal();
+    });
+    
+    document.getElementById('cancel-suspend').addEventListener('click', () => {
+      suspendModal.close();
+    });
+    
+    document.getElementById('confirm-suspend').addEventListener('click', async () => {
+      try {
+        const signer = await getSigner();
+        // Note: This would call agentRegistry.suspend(tokenId) if deployed
+        suspendModal.close();
+        showToast('Agent suspended successfully');
+      } catch (err) {
+        console.error('Suspend error:', err);
+        if (err.message.includes('No wallet found')) {
+          alert('Please connect your wallet');
+        } else {
+          alert('Failed to suspend agent');
+        }
+      }
+    });
+    
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async () => {
+      setActiveNav();
+      loadTopBar();
+      const agentAddr = await getAgentAddress();
+      
+      if (agentAddr) {
+        await Promise.all([
+          loadAgentMetadata(agentAddr),
+          loadReputation(agentAddr),
+          loadMetrics(agentAddr),
+          loadVolumeChart(agentAddr),
+          loadRadarChart(agentAddr),
+          loadExecutionLogs(agentAddr),
+          loadZKProofs(agentAddr),
+          loadVaccineStatus(agentAddr),
+          loadCouncilHistory(agentAddr)
+        ]);
+      }
+    });
+  </script>
+</body>
+</html>

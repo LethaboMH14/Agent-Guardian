@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guardian Prime — ZK-ML Dive</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.1/ethers.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #e8eaf0;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+    
+    .neomorphic-raised {
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    .neomorphic-inset {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    .skeleton {
+      background: linear-gradient(90deg, #dcdee4 25%, #e8eaf0 50%, #dcdee4 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+    
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .skeleton-value {
+      height: 32px;
+      width: 60%;
+    }
+    
+    .error-state {
+      color: #dc2626;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .retry-btn {
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: none;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      color: #1e293b;
+      cursor: pointer;
+    }
+    
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 256px;
+      height: 100vh;
+      background: #e8eaf0;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+    }
+    
+    .sidebar-header {
+      margin-bottom: 32px;
+    }
+    
+    .sidebar-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    
+    .sidebar-version {
+      font-size: 12px;
+      color: #64748b;
+    }
+    
+    .new-proof-btn {
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #6366f1;
+      color: white;
+      border: none;
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: 6px 6px 12px rgba(99, 102, 241, 0.3);
+      transition: all 0.2s;
+      margin-bottom: 24px;
+    }
+    
+    .new-proof-btn:hover {
+      background: #4f46e5;
+    }
+    
+    .nav-links {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .nav-link {
+      padding: 12px 16px;
+      border-radius: 12px;
+      text-decoration: none;
+      color: #64748b;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .nav-link:hover {
+      color: #6366f1;
+    }
+    
+    .nav-link.active {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      color: #6366f1;
+    }
+    
+    .sidebar-bottom {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .lock-btn {
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      color: #dc2626;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .lock-btn:hover {
+      box-shadow: 4px 4px 8px rgba(0,0,0,0.06), -4px -4px 8px rgba(255,255,255,0.5);
+    }
+    
+    .support-link {
+      text-align: center;
+      color: #64748b;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    
+    .main-content {
+      margin-left: 256px;
+      padding: 24px;
+    }
+    
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      gap: 16px;
+    }
+    
+    .branding {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .branding-icon {
+      width: 40px;
+      height: 40px;
+      background: #6366f1;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+    }
+    
+    .branding-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #64748b;
+      font-size: 18px;
+      transition: all 0.2s;
+    }
+    
+    .icon-btn:hover {
+      color: #6366f1;
+    }
+    
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #6366f1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+    }
+    
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .circuit-card {
+      padding: 24px;
+    }
+    
+    .circuit-label {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+    }
+    
+    .circuit-diagram {
+      width: 100%;
+      height: 300px;
+    }
+    
+    .metrics-column {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    .metric-card {
+      padding: 20px;
+    }
+    
+    .metric-label {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    
+    .metric-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+    
+    .sparkline {
+      display: flex;
+      gap: 4px;
+      align-items: flex-end;
+      height: 40px;
+    }
+    
+    .sparkline-bar {
+      flex: 1;
+      background: #6366f1;
+      border-radius: 2px;
+      transition: height 0.3s;
+    }
+    
+    .gauge-container {
+      width: 80px;
+      height: 80px;
+      position: relative;
+      margin: 0 auto;
+    }
+    
+    .gauge-svg {
+      transform: rotate(-90deg);
+    }
+    
+    .gauge-bg {
+      fill: none;
+      stroke: #e8eaf0;
+      stroke-width: 8;
+    }
+    
+    .gauge-fill {
+      fill: none;
+      stroke: #6366f1;
+      stroke-width: 8;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.5s ease;
+    }
+    
+    .gauge-value {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 16px;
+      font-weight: 700;
+      color: #6366f1;
+    }
+    
+    .security-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .security-sub {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    
+    .proof-explorer {
+      padding: 24px;
+    }
+    
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    
+    .filter-btn {
+      padding: 8px 16px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      font-family: inherit;
+      font-weight: 500;
+      font-size: 13px;
+      color: #1e293b;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .filter-btn:hover {
+      box-shadow: 4px 4px 8px rgba(0,0,0,0.06), -4px -4px 8px rgba(255,255,255,0.5);
+    }
+    
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .table th {
+      text-align: left;
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 12px;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .table td {
+      padding: 12px;
+      font-size: 14px;
+      color: #1e293b;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .table tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .verified-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #10b981;
+      color: white;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    
+    .pending-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #cbd5e1;
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    
+    .action-icon {
+      color: #64748b;
+      cursor: pointer;
+      font-size: 16px;
+      transition: color 0.2s;
+    }
+    
+    .action-icon:hover {
+      color: #6366f1;
+    }
+    
+    .accordion {
+      margin-top: 24px;
+    }
+    
+    .accordion-header {
+      padding: 16px 24px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      width: 100%;
+      text-align: left;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      color: #1e293b;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .accordion-header:hover {
+      box-shadow: 4px 4px 8px rgba(0,0,0,0.06), -4px -4px 8px rgba(255,255,255,0.5);
+    }
+    
+    .accordion-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+    
+    .accordion-content.open {
+      max-height: 500px;
+    }
+    
+    .accordion-inner {
+      padding: 24px;
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      border-radius: 0 0 12px 12px;
+      margin-top: -8px;
+    }
+    
+    .param-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .param-row:last-child {
+      border-bottom: none;
+    }
+    
+    .param-label {
+      font-size: 14px;
+      color: #64748b;
+    }
+    
+    .param-value {
+      font-size: 14px;
+      font-weight: 500;
+      color: #1e293b;
+    }
+    
+    .skeleton {
+      background: linear-gradient(90deg, #e8eaf0 25%, #f1f3f5 50%, #e8eaf0 75%);
+      background-size: 200% 100%;
+      animation: pulse 1.5s infinite;
+      border-radius: 4px;
+    }
+    
+    @keyframes pulse {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .skeleton-value {
+      height: 32px;
+      width: 60%;
+    }
+  </style>
+</head>
+<body>
+  <script src="js/env.js"></script>
+  <script src="js/client.js"></script>
+  <script type="module">
+    import { initNav } from './js/nav.js';
+    import { initTopBar } from './js/topbar.js';
+    initNav('zk-ml');
+    initTopBar();
+  </script>
+
+  <!-- Main content -->
+  <main class="main-content">
+    <!-- Content grid -->
+    <div class="content-grid">
+      <!-- Circuit Architecture -->
+      <div class="circuit-card neomorphic-raised">
+        <div class="circuit-label">Circuit Architecture</div>
+        <div class="circuit-label" style="font-size: 10px; color: #6366f1;">relu.circom</div>
+        
+        <svg class="circuit-diagram" viewBox="0 0 800 300">
+          <!-- Private Inputs -->
+          <g transform="translate(20, 50)">
+            <rect x="0" y="0" width="80" height="30" rx="6" fill="#e8eaf0" stroke="#6366f1" stroke-width="2"/>
+            <text x="40" y="20" text-anchor="middle" font-size="11" fill="#1e293b">pre[0]</text>
+          </g>
+          <g transform="translate(20, 90)">
+            <rect x="0" y="0" width="80" height="30" rx="6" fill="#e8eaf0" stroke="#6366f1" stroke-width="2"/>
+            <text x="40" y="20" text-anchor="middle" font-size="11" fill="#1e293b">pre[1]</text>
+          </g>
+          <g transform="translate(20, 130)">
+            <rect x="0" y="0" width="80" height="30" rx="6" fill="#e8eaf0" stroke="#6366f1" stroke-width="2"/>
+            <text x="40" y="20" text-anchor="middle" font-size="11" fill="#1e293b">pre[2]</text>
+          </g>
+          <text x="60" y="180" text-anchor="middle" font-size="10" fill="#64748b">...</text>
+          <g transform="translate(20, 200)">
+            <rect x="0" y="0" width="80" height="30" rx="6" fill="#e8eaf0" stroke="#6366f1" stroke-width="2"/>
+            <text x="40" y="20" text-anchor="middle" font-size="11" fill="#1e293b">pre[7]</text>
+          </g>
+          
+          <!-- Arrows to ReLU -->
+          <path d="M 100 65 L 200 135" stroke="#6366f1" stroke-width="2" fill="none"/>
+          <path d="M 100 105 L 200 135" stroke="#6366f1" stroke-width="2" fill="none"/>
+          <path d="M 100 145 L 200 135" stroke="#6366f1" stroke-width="2" fill="none"/>
+          <path d="M 100 215 L 200 135" stroke="#6366f1" stroke-width="2" fill="none"/>
+          
+          <!-- ReLU Layer -->
+          <g transform="translate(200, 100)">
+            <rect x="0" y="0" width="140" height="70" rx="12" fill="#e8eaf0" stroke="#6366f1" stroke-width="2"/>
+            <text x="70" y="30" text-anchor="middle" font-size="13" font-weight="600" fill="#1e293b">ReLU Layer</text>
+            <text x="70" y="50" text-anchor="middle" font-size="10" fill="#64748b">Non-linear Activation</text>
+          </g>
+          
+          <!-- Arrow to Cognition -->
+          <path d="M 340 135 L 420 135" stroke="#6366f1" stroke-width="2" fill="none"/>
+          
+          <!-- Cognition Layer -->
+          <g transform="translate(420, 100)">
+            <rect x="0" y="0" width="140" height="70" rx="12" fill="#e8eaf0" stroke="#6366f1" stroke-width="2"/>
+            <text x="70" y="30" text-anchor="middle" font-size="13" font-weight="600" fill="#1e293b">CognitionLayer</text>
+            <text x="70" y="50" text-anchor="middle" font-size="10" fill="#64748b">Poseidon Hash</text>
+          </g>
+          
+          <!-- Arrow to Model Commitment -->
+          <path d="M 560 135 L 640 135" stroke="#6366f1" stroke-width="2" fill="none"/>
+          
+          <!-- Model Commitment -->
+          <g transform="translate(640, 100)">
+            <rect x="0" y="0" width="140" height="70" rx="12" fill="#e8eaf0" stroke="#6366f1" stroke-width="2"/>
+            <text x="70" y="30" text-anchor="middle" font-size="13" font-weight="600" fill="#1e293b">ModelCommitment</text>
+            <text x="70" y="50" text-anchor="middle" font-size="10" fill="#64748b">State Verification</text>
+          </g>
+          
+          <!-- Output -->
+          <g transform="translate(640, 220)">
+            <rect x="0" y="0" width="140" height="40" rx="8" fill="#10b981" stroke="#059669" stroke-width="2"/>
+            <text x="70" y="25" text-anchor="middle" font-size="12" font-weight="600" fill="white">decisionHash</text>
+          </g>
+          <path d="M 710 170 L 710 220" stroke="#10b981" stroke-width="2" fill="none"/>
+        </svg>
+      </div>
+      
+      <!-- Metrics column -->
+      <div class="metrics-column">
+        <!-- Performance -->
+        <div class="metric-card neomorphic-raised">
+          <div class="metric-label">Performance</div>
+          <div class="metric-value" id="perf-value">
+            <div class="skeleton skeleton-value"></div>
+          </div>
+          <div class="sparkline" id="sparkline">
+            <div class="skeleton" style="width: 100%; height: 40px;"></div>
+          </div>
+        </div>
+        
+        <!-- Success Rate -->
+        <div class="metric-card neomorphic-raised">
+          <div class="metric-label">Success Rate</div>
+          <div class="gauge-container">
+            <svg class="gauge-svg" width="80" height="80">
+              <circle class="gauge-bg" cx="40" cy="40" r="32"/>
+              <circle class="gauge-fill" id="gauge-fill" cx="40" cy="40" r="32" 
+                stroke-dasharray="201" stroke-dashoffset="201"/>
+            </svg>
+            <div class="gauge-value" id="success-rate">--%</div>
+          </div>
+        </div>
+        
+        <!-- Security Events -->
+        <div class="metric-card neomorphic-raised">
+          <div class="metric-label">Security Events</div>
+          <div class="security-value" id="security-events">
+            <div class="skeleton skeleton-value"></div>
+          </div>
+          <div class="security-sub" id="audit-sync">Last audit: --</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Proof Explorer -->
+    <div class="proof-explorer neomorphic-raised">
+      <div class="section-header">
+        <h3 class="section-title">Proof Explorer</h3>
+        <button class="filter-btn">🔍 Filter</button>
+      </div>
+      
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Agent</th>
+            <th>Amount</th>
+            <th>decisionHash</th>
+            <th>commitment</th>
+            <th>Time</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="proof-table">
+          <tr>
+            <td colspan="8"><div class="skeleton" style="height: 40px;"></div></td>
+          </tr>
+          <tr>
+            <td colspan="8"><div class="skeleton" style="height: 40px;"></div></td>
+          </tr>
+          <tr>
+            <td colspan="8"><div class="skeleton" style="height: 40px;"></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Trusted Setup Accordion -->
+    <div class="accordion">
+      <button class="accordion-header" id="accordion-toggle">
+        <span>Trusted Setup Parameters</span>
+        <span id="accordion-icon">▼</span>
+      </button>
+      <div class="accordion-content" id="accordion-content">
+        <div class="accordion-inner">
+          <div class="param-row">
+            <div class="param-label">Protocol</div>
+            <div class="param-value">groth16</div>
+          </div>
+          <div class="param-row">
+            <div class="param-label">Curve</div>
+            <div class="param-value">bn128</div>
+          </div>
+          <div class="param-row">
+            <div class="param-label">nPublic</div>
+            <div class="param-value">2</div>
+          </div>
+          <div class="param-row">
+            <div class="param-label">IC Count</div>
+            <div class="param-value">3</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script type="module">
+    const { supabase, timeAgo, truncate, toast, loadTopBar, setActiveNav } = window.AG;
+    
+    // Load performance metrics
+    async function loadPerformance() {
+      try {
+        const { data, error } = await supabase
+          .from('aggregation_batches')
+          .select('latency_ms')
+          .order('created_at', { ascending: false })
+          .limit(7);
+        
+        if (!error && data && data.length > 0) {
+          const avg = data.reduce((sum, d) => sum + (d.latency_ms || 0), 0) / data.length;
+          document.getElementById('perf-value').textContent = `${Math.round(avg)}ms/proof`;
+          
+          // Sparkline
+          const maxLatency = Math.max(...data.map(d => d.latency_ms || 0));
+          const sparkline = document.getElementById('sparkline');
+          sparkline.innerHTML = data.map(d => {
+            const height = ((d.latency_ms || 0) / maxLatency) * 100;
+            return `<div class="sparkline-bar" style="height: ${height}%"></div>`;
+          }).join('');
+        }
+      } catch (err) {
+        console.error('Performance error:', err);
+        document.getElementById('perf-value').textContent = '--ms/proof';
+      }
+    }
+    
+    // Load success rate
+    async function loadSuccessRate() {
+      try {
+        const { data, error } = await supabase
+          .from('council_sessions')
+          .select('approved');
+        
+        if (!error && data && data.length > 0) {
+          const total = data.length;
+          const approved = data.filter(d => d.approved).length;
+          const rate = (approved / total) * 100;
+          
+          document.getElementById('success-rate').textContent = `${rate.toFixed(1)}%`;
+          
+          // Animate gauge
+          const gaugeFill = document.getElementById('gauge-fill');
+          const circumference = 201;
+          const offset = circumference - (rate / 100) * circumference;
+          setTimeout(() => {
+            gaugeFill.style.strokeDashoffset = offset;
+          }, 100);
+        }
+      } catch (err) {
+        console.error('Success rate error:', err);
+        document.getElementById('success-rate').textContent = '--%';
+      }
+    }
+    
+    // Load security events
+    async function loadSecurityEvents() {
+      try {
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        
+        const { count, error } = await supabase
+          .from('sentinel_alerts')
+          .select('*', { count: 'exact', head: true })
+          .gte('severity', 2)
+          .gte('created_at', oneDayAgo);
+        
+        if (!error) {
+          document.getElementById('security-events').textContent = count || 0;
+        }
+      } catch (err) {
+        console.error('Security events error:', err);
+        document.getElementById('security-events').textContent = '--';
+      }
+      
+      // Last audit sync
+      try {
+        const { data, error } = await supabase
+          .from('sentinel_heartbeats')
+          .select('created_at')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (!error && data) {
+          document.getElementById('audit-sync').textContent = `Last audit: ${timeAgo(data.created_at)}`;
+        }
+      } catch (err) {
+        console.error('Audit sync error:', err);
+      }
+    }
+    
+    // Load proof explorer
+    async function loadProofExplorer() {
+      try {
+        // Simplified query - using aggregation_batches directly
+        const { data, error } = await supabase
+          .from('aggregation_batches')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        if (!error && data) {
+          const tbody = document.getElementById('proof-table');
+          tbody.innerHTML = data.map(row => `
+            <tr>
+              <td>#BP-${row.id?.toString().slice(-4) || '----'}</td>
+              <td>${truncate(row.agents?.[0] || 'Unknown', 8)}</td>
+              <td>--</td>
+              <td>${truncate(row.batch_root || '', 10)}</td>
+              <td>${truncate(row.batch_root || '', 10)}</td>
+              <td>${timeAgo(row.created_at)}</td>
+              <td>
+                ${row.nullifier 
+                  ? '<span class="verified-badge">✓ Verified</span>'
+                  : '<span class="pending-badge">Pending</span>'}
+              </td>
+              <td><span class="action-icon">👁️</span></td>
+            </tr>
+          `).join('');
+        }
+      } catch (err) {
+        console.error('Proof explorer error:', err);
+        document.getElementById('proof-table').innerHTML = '<tr><td colspan="8">Error loading proofs</td></tr>';
+      }
+    }
+    
+    // Accordion toggle
+    document.getElementById('accordion-toggle').addEventListener('click', () => {
+      const content = document.getElementById('accordion-content');
+      const icon = document.getElementById('accordion-icon');
+      content.classList.toggle('open');
+      icon.textContent = content.classList.contains('open') ? '▲' : '▼';
+    });
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      setActiveNav();
+      loadTopBar();
+      loadPerformance();
+      loadSuccessRate();
+      loadSecurityEvents();
+      loadProofExplorer();
+    });
+  </script>
+</body>
+</html>

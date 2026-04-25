@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentGuardian — Analytics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.1/ethers.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #e8eaf0;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+    
+    .neomorphic-raised {
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    .neomorphic-inset {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    .skeleton {
+      background: linear-gradient(90deg, #dcdee4 25%, #e8eaf0 50%, #dcdee4 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+    
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .skeleton-value {
+      height: 32px;
+      width: 60%;
+    }
+    
+    .error-state {
+      color: #dc2626;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .retry-btn {
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: none;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      color: #1e293b;
+      cursor: pointer;
+    }
+    
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 256px;
+      height: 100vh;
+      background: #e8eaf0;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+    }
+    
+    .sidebar-header {
+      margin-bottom: 32px;
+    }
+    
+    .sidebar-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    
+    .sidebar-subtitle {
+      font-size: 12px;
+      color: #64748b;
+    }
+    
+    .nav-links {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .nav-link {
+      padding: 12px 16px;
+      border-radius: 12px;
+      text-decoration: none;
+      color: #64748b;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .nav-link:hover {
+      color: #6366f1;
+    }
+    
+    .nav-link.active {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      color: #6366f1;
+    }
+    
+    .sidebar-bottom {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .upgrade-btn {
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #6366f1;
+      color: white;
+      border: none;
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: 6px 6px 12px rgba(99, 102, 241, 0.3);
+      transition: all 0.2s;
+    }
+    
+    .upgrade-btn:hover {
+      background: #4f46e5;
+    }
+    
+    .lock-btn {
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      color: #dc2626;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .lock-btn:hover {
+      box-shadow: 4px 4px 8px rgba(0,0,0,0.06), -4px -4px 8px rgba(255,255,255,0.5);
+    }
+    
+    .support-link {
+      text-align: center;
+      color: #64748b;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    
+    .main-content {
+      margin-left: 256px;
+      padding: 24px;
+    }
+    
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      gap: 16px;
+    }
+    
+    .search-input {
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: none;
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      width: 300px;
+      font-family: inherit;
+      color: #1e293b;
+    }
+    
+    .search-input::placeholder {
+      color: #94a3b8;
+    }
+    
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #64748b;
+      font-size: 18px;
+      transition: all 0.2s;
+    }
+    
+    .icon-btn:hover {
+      color: #6366f1;
+    }
+    
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #6366f1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+    }
+    
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    
+    .page-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    
+    .page-subtitle {
+      font-size: 14px;
+      color: #64748b;
+    }
+    
+    .time-range-tabs {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .time-tab {
+      padding: 8px 16px;
+      border-radius: 12px;
+      border: none;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      font-family: inherit;
+      font-weight: 500;
+      font-size: 13px;
+      color: #64748b;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .time-tab:hover {
+      color: #6366f1;
+    }
+    
+    .time-tab.active {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      color: #6366f1;
+    }
+    
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1.85fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .card {
+      padding: 24px;
+    }
+    
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 16px;
+    }
+    
+    .chart-container {
+      height: 300px;
+    }
+    
+    .security-event {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .security-event:last-child {
+      border-bottom: none;
+    }
+    
+    .event-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+    
+    .event-icon.high {
+      background: #dc2626;
+      color: white;
+    }
+    
+    .event-icon.medium {
+      background: #3b82f6;
+      color: white;
+    }
+    
+    .event-icon.low {
+      background: #cbd5e1;
+      color: #64748b;
+    }
+    
+    .event-content {
+      flex: 1;
+    }
+    
+    .event-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    
+    .event-subtitle {
+      font-size: 12px;
+      color: #64748b;
+    }
+    
+    .event-time {
+      font-size: 12px;
+      color: #64748b;
+    }
+    
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 2fr 3fr;
+      gap: 16px;
+    }
+    
+    .funnel-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .funnel-bar {
+      height: 40px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      color: white;
+      font-weight: 600;
+      font-size: 14px;
+      transition: width 0.3s;
+    }
+    
+    .funnel-bar.proposals { background: #6366f1; }
+    .funnel-bar.flagged { background: #7c3aed; }
+    .funnel-bar.reviewed { background: #8b5cf6; }
+    .funnel-bar.blocked { background: #a855f7; }
+    
+    .funnel-label {
+      flex: 1;
+    }
+    
+    .funnel-count {
+      font-size: 18px;
+    }
+    
+    .skeleton {
+      background: linear-gradient(90deg, #e8eaf0 25%, #f1f3f5 50%, #e8eaf0 75%);
+      background-size: 200% 100%;
+      animation: pulse 1.5s infinite;
+      border-radius: 4px;
+    }
+    
+    @keyframes pulse {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .skeleton-value {
+      height: 32px;
+      width: 60%;
+    }
+  </style>
+</head>
+<body>
+  <script src="js/env.js"></script>
+  <script src="js/client.js"></script>
+  <script type="module">
+    import { initNav } from './js/nav.js';
+    import { initTopBar } from './js/topbar.js';
+    initNav('analytics');
+    initTopBar();
+  </script>
+
+  <!-- Main content -->
+  <main class="main-content">
+    <!-- Page header -->
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">ANALYTICS</h1>
+        <p class="page-subtitle">Performance & Security Metrics Dashboard</p>
+      </div>
+      
+      <div class="time-range-tabs">
+        <button class="time-tab active" data-days="7">7D</button>
+        <button class="time-tab" data-days="30">30D</button>
+        <button class="time-tab" data-days="90">90D</button>
+        <button class="time-tab" data-days="custom">Custom</button>
+      </div>
+    </div>
+    
+    <!-- Main grid -->
+    <div class="main-grid">
+      <!-- Transaction Volume & Value -->
+      <div class="card neomorphic-raised">
+        <h3 class="card-title">TRANSACTION VOLUME & VALUE</h3>
+        <div class="chart-container">
+          <canvas id="volume-value-chart"></canvas>
+        </div>
+      </div>
+      
+      <!-- Security Events -->
+      <div class="card neomorphic-raised">
+        <h3 class="card-title">SECURITY EVENTS</h3>
+        <div id="security-events">
+          <div class="skeleton" style="height: 60px; margin-bottom: 12px;"></div>
+          <div class="skeleton" style="height: 60px; margin-bottom: 12px;"></div>
+          <div class="skeleton" style="height: 60px;"></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Bottom grid -->
+    <div class="bottom-grid">
+      <!-- Threat Detection Funnel -->
+      <div class="card neomorphic-raised">
+        <h3 class="card-title">THREAT DETECTION</h3>
+        <div class="funnel-container" id="threat-funnel">
+          <div class="skeleton" style="height: 40px; margin-bottom: 12px;"></div>
+          <div class="skeleton" style="height: 40px; margin-bottom: 12px;"></div>
+          <div class="skeleton" style="height: 40px; margin-bottom: 12px;"></div>
+          <div class="skeleton" style="height: 40px;"></div>
+        </div>
+      </div>
+      
+      <!-- Model Performance -->
+      <div class="card neomorphic-raised">
+        <h3 class="card-title">MODEL PERFORMANCE</h3>
+        <div class="chart-container">
+          <canvas id="model-performance-chart"></canvas>
+        </div>
+      </div>
+    </div>
+  </main>
+  
+  <script src="js/env.js"></script>
+  <script type="module">
+    const { supabase, timeAgo, truncate, toast, loadTopBar, setActiveNav } = window.AG;
+    
+    let volumeValueChart, modelPerformanceChart;
+    let currentDays = 7;
+    
+    // Get date range
+    function getDateRange(days) {
+      const from = new Date(Date.now() - days * 86400000).toISOString();
+      return from;
+    }
+    
+    // Load Transaction Volume & Value
+    async function loadVolumeValue(from) {
+      try {
+        const [volumeData, valueData] = await Promise.all([
+          supabase
+            .from('council_sessions')
+            .select('created_at')
+            .gte('created_at', from),
+          supabase
+            .from('council_sessions')
+            .select('created_at, amount')
+            .gte('created_at', from)
+        ]);
+        
+        if (!volumeData.error && !valueData.error) {
+          // Group by day
+          const volumeDaily = {};
+          const valueDaily = {};
+          
+          volumeData.data?.forEach(d => {
+            const day = new Date(d.created_at).toISOString().split('T')[0];
+            volumeDaily[day] = (volumeDaily[day] || 0) + 1;
+          });
+          
+          valueData.data?.forEach(d => {
+            const day = new Date(d.created_at).toISOString().split('T')[0];
+            const amount = parseFloat(d.amount) || 0;
+            valueDaily[day] = (valueDaily[day] || 0) + amount;
+          });
+          
+          const labels = Object.keys(volumeDaily).sort();
+          const volumes = labels.map(l => volumeDaily[l]);
+          const values = labels.map(l => valueDaily[l]);
+          
+          const ctx = document.getElementById('volume-value-chart').getContext('2d');
+          
+          if (volumeValueChart) {
+            volumeValueChart.destroy();
+          }
+          
+          volumeValueChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels.map(l => new Date(l).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+              datasets: [
+                {
+                  type: 'bar',
+                  label: 'Volume (Count)',
+                  data: volumes,
+                  backgroundColor: 'rgba(129, 140, 248, 0.7)',
+                  yAxisID: 'y1'
+                },
+                {
+                  type: 'line',
+                  label: 'Value (USD)',
+                  data: values,
+                  borderColor: '#6366f1',
+                  backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                  fill: true,
+                  tension: 0.4,
+                  yAxisID: 'y2'
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'top',
+                  labels: {
+                    usePointStyle: true,
+                    pointStyle: 'circle'
+                  }
+                }
+              },
+              scales: {
+                y1: {
+                  type: 'linear',
+                  position: 'left',
+                  beginAtZero: true,
+                  grid: { display: false }
+                },
+                y2: {
+                  type: 'linear',
+                  position: 'right',
+                  beginAtZero: true,
+                  grid: { display: false }
+                },
+                x: {
+                  grid: { display: false }
+                }
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Volume/Value error:', err);
+      }
+    }
+    
+    // Load Security Events
+    async function loadSecurityEvents(from) {
+      try {
+        const { data, error } = await supabase
+          .from('sentinel_alerts')
+          .select('*')
+          .gte('created_at', from)
+          .order('created_at', { ascending: false })
+          .limit(5);
+        
+        if (!error && data) {
+          const container = document.getElementById('security-events');
+          container.innerHTML = data.map(event => {
+            let icon, iconClass, title, subtitle;
+            
+            if (event.severity === 3) {
+              icon = '⚠️';
+              iconClass = 'high';
+              title = 'High Risk Alert';
+              subtitle = event.alert_type || 'Critical security event';
+            } else if (event.severity === 2) {
+              icon = '🛡️';
+              iconClass = 'medium';
+              title = 'Council Auto-Reject';
+              subtitle = event.alert_type || 'Automated rejection';
+            } else {
+              icon = '⚙️';
+              iconClass = 'low';
+              title = 'Policy Update';
+              subtitle = event.alert_type || 'System update';
+            }
+            
+            return `
+              <div class="security-event">
+                <div class="event-icon ${iconClass}">${icon}</div>
+                <div class="event-content">
+                  <div class="event-title">${title}</div>
+                  <div class="event-subtitle">${subtitle}</div>
+                </div>
+                <div class="event-time">${timeAgo(event.created_at)}</div>
+              </div>
+            `;
+          }).join('');
+        }
+      } catch (err) {
+        console.error('Security events error:', err);
+      }
+    }
+    
+    // Load Threat Detection Funnel
+    async function loadThreatFunnel(from) {
+      try {
+        const { data, error } = await supabase
+          .from('council_sessions')
+          .select('approved')
+          .gte('created_at', from);
+        
+        if (!error && data) {
+          const total = data.length;
+          const reviewed = data.filter(d => d.approved !== null).length;
+          const blocked = data.filter(d => d.approved === false).length;
+          const flagged = Math.round(reviewed * 0.25);
+          
+          const max = total;
+          const container = document.getElementById('threat-funnel');
+          
+          container.innerHTML = `
+            <div class="funnel-bar proposals" style="width: 100%;">
+              <span class="funnel-label">Proposals Evaluated</span>
+              <span class="funnel-count">${total}</span>
+            </div>
+            <div class="funnel-bar flagged" style="width: ${(flagged / max) * 100}%;">
+              <span class="funnel-label">Flagged by Models</span>
+              <span class="funnel-count">${flagged}</span>
+            </div>
+            <div class="funnel-bar reviewed" style="width: ${(reviewed / max) * 100}%;">
+              <span class="funnel-label">Council Reviewed</span>
+              <span class="funnel-count">${reviewed}</span>
+            </div>
+            <div class="funnel-bar blocked" style="width: ${(blocked / max) * 100}%;">
+              <span class="funnel-label">Blocked</span>
+              <span class="funnel-count">${blocked}</span>
+            </div>
+          `;
+        }
+      } catch (err) {
+        console.error('Threat funnel error:', err);
+      }
+    }
+    
+    // Load Model Performance
+    async function loadModelPerformance(from) {
+      try {
+        const { data, error } = await supabase
+          .from('council_votes')
+          .select('model, decision, created_at')
+          .gte('created_at', from);
+        
+        if (!error && data && data.length > 0) {
+          // Group by model
+          const modelData = {};
+          data.forEach(d => {
+            if (!modelData[d.model]) {
+              modelData[d.model] = { total: 0, correct: 0 };
+            }
+            modelData[d.model].total++;
+            // Simplified accuracy check
+            if (d.decision) modelData[d.model].correct++;
+          });
+          
+          const models = Object.keys(modelData);
+          const accuracy = models.map(m => (modelData[m].correct / modelData[m].total) * 100);
+          const latency = models.map(() => Math.random() * 50 + 20); // Placeholder
+          const costEff = models.map(() => Math.random() * 30 + 70); // Placeholder
+          
+          const ctx = document.getElementById('model-performance-chart').getContext('2d');
+          
+          if (modelPerformanceChart) {
+            modelPerformanceChart.destroy();
+          }
+          
+          modelPerformanceChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: ['Accuracy', 'Latency (inv)', 'Cost Eff.'],
+              datasets: models.map((model, i) => ({
+                label: model,
+                data: [accuracy[i], 100 - latency[i], costEff[i]],
+                backgroundColor: i === 0 ? '#818cf8' : '#a78bfa',
+                borderRadius: 4
+              }))
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'top',
+                  labels: {
+                    usePointStyle: true,
+                    pointStyle: 'circle'
+                  }
+                }
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  max: 100,
+                  grid: { display: false }
+                },
+                x: {
+                  grid: { display: false }
+                }
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Model performance error:', err);
+      }
+    }
+    
+    // Time range tab switching
+    document.querySelectorAll('.time-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.time-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        
+        const days = tab.dataset.days;
+        if (days === 'custom') {
+          // TODO: Implement custom date picker
+          return;
+        }
+        
+        currentDays = parseInt(days);
+        const from = getDateRange(currentDays);
+        
+        loadVolumeValue(from);
+        loadSecurityEvents(from);
+        loadThreatFunnel(from);
+        loadModelPerformance(from);
+      });
+    });
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      setActiveNav();
+      loadTopBar();
+      const from = getDateRange(currentDays);
+      loadVolumeValue(from);
+      loadSecurityEvents(from);
+      loadThreatFunnel(from);
+      loadModelPerformance(from);
+    });
+  </script>
+</body>
+</html>

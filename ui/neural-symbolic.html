@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentGuardian — Neural-Symbolic Verification</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.1/ethers.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #e8eaf0;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+    
+    .neomorphic-raised {
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    .neomorphic-inset {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    .skeleton {
+      background: linear-gradient(90deg, #dcdee4 25%, #e8eaf0 50%, #dcdee4 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+    
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .skeleton-value {
+      height: 32px;
+      width: 60%;
+    }
+    
+    .error-state {
+      color: #dc2626;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .retry-btn {
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: none;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      color: #1e293b;
+      cursor: pointer;
+    }
+    
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 256px;
+      height: 100vh;
+      background: #e8eaf0;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 40px;
+    }
+    
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: #6366f1;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+    }
+    
+    .logo-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .nav-links {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .nav-link {
+      padding: 12px 16px;
+      border-radius: 12px;
+      text-decoration: none;
+      color: #64748b;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .nav-link:hover {
+      color: #6366f1;
+    }
+    
+    .nav-link.active {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      color: #6366f1;
+    }
+    
+    .sidebar-bottom {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .lock-btn {
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      color: #dc2626;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .lock-btn:hover {
+      box-shadow: 4px 4px 8px rgba(0,0,0,0.06), -4px -4px 8px rgba(255,255,255,0.5);
+    }
+    
+    .support-link {
+      text-align: center;
+      color: #64748b;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    
+    .main-content {
+      margin-left: 256px;
+      padding: 24px;
+    }
+    
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      gap: 16px;
+    }
+    
+    .branding {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .branding-icon {
+      width: 40px;
+      height: 40px;
+      background: #6366f1;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+    }
+    
+    .branding-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #64748b;
+      font-size: 18px;
+      transition: all 0.2s;
+    }
+    
+    .icon-btn:hover {
+      color: #6366f1;
+    }
+    
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #6366f1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+    }
+    
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    
+    .page-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .page-subtitle {
+      font-size: 14px;
+      color: #64748b;
+    }
+    
+    .btn {
+      padding: 12px 20px;
+      border-radius: 12px;
+      border: none;
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn-raised {
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      color: #1e293b;
+    }
+    
+    .btn-raised:hover {
+      box-shadow: 4px 4px 8px rgba(0,0,0,0.06), -4px -4px 8px rgba(255,255,255,0.5);
+    }
+    
+    .btn-primary {
+      background: #6366f1;
+      color: white;
+      box-shadow: 6px 6px 12px rgba(99, 102, 241, 0.3);
+    }
+    
+    .btn-primary:hover {
+      background: #4f46e5;
+    }
+    
+    .three-column-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .card {
+      padding: 24px;
+    }
+    
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 12px;
+    }
+    
+    .card-description {
+      font-size: 14px;
+      color: #64748b;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+    
+    .sparkline {
+      display: flex;
+      gap: 4px;
+      margin-top: 12px;
+    }
+    
+    .sparkline-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    
+    .sparkline-dot.green {
+      background: #10b981;
+    }
+    
+    .sparkline-dot.red {
+      background: #dc2626;
+    }
+    
+    .progress-bar {
+      height: 8px;
+      border-radius: 4px;
+      background: #e8eaf0;
+      box-shadow: inset 2px 2px 4px rgba(0,0,0,0.06), inset -2px -2px 4px rgba(255,255,255,0.5);
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s;
+    }
+    
+    .progress-fill.green { background: #10b981; }
+    .progress-fill.amber { background: #f59e0b; }
+    .progress-fill.red { background: #dc2626; }
+    
+    .stat-value {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-top: 8px;
+    }
+    
+    .table-card {
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 16px;
+    }
+    
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .table th {
+      text-align: left;
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 12px;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .table td {
+      padding: 12px;
+      font-size: 14px;
+      color: #1e293b;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .table tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .sat-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #10b981;
+      color: white;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    
+    .unsat-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #dc2626;
+      color: white;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    
+    .bitmask-dots {
+      display: flex;
+      gap: 2px;
+    }
+    
+    .bit-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    
+    .bit-dot.satisfied {
+      background: #6366f1;
+    }
+    
+    .bit-dot.violated {
+      border: 2px solid #dc2626;
+      background: transparent;
+    }
+    
+    .view-violations {
+      color: #6366f1;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    
+    .view-violations:hover {
+      text-decoration: underline;
+    }
+    
+    .chart-card {
+      padding: 24px;
+    }
+    
+    .chart-container {
+      height: 250px;
+    }
+    
+    /* Modal */
+    dialog {
+      border: none;
+      border-radius: 16px;
+      background: #e8eaf0;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+      padding: 24px;
+      max-width: 500px;
+    }
+    
+    dialog::backdrop {
+      background: rgba(0,0,0,0.5);
+    }
+    
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 16px;
+    }
+    
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #64748b;
+      float: right;
+    }
+    
+    .violation-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    
+    .violation-item {
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #dc2626;
+      color: white;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 16px 24px;
+      border-radius: 12px;
+      background: #10b981;
+      color: white;
+      font-weight: 500;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      z-index: 1000;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s;
+    }
+    
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 0.8s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <script src="js/env.js"></script>
+  <script src="js/client.js"></script>
+  <script type="module">
+    import { initNav } from './js/nav.js';
+    import { initTopBar } from './js/topbar.js';
+    initNav('symbolic-verifier');
+    initTopBar();
+  </script>
+
+  <!-- Main content -->
+  <main class="main-content">
+    <!-- Page header -->
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">NEURAL-SYMBOLIC VERIFICATION</h1>
+        <p class="page-subtitle">Hybrid ZK proof verification with symbolic constraint checking</p>
+      </div>
+      <button class="btn btn-primary" id="re-evaluate-btn">
+        <span>🔄</span> Re-evaluate
+      </button>
+    </div>
+    
+    <!-- Three column grid -->
+    <div class="three-column-grid">
+      <!-- Lyapunov Stability -->
+      <div class="card neomorphic-raised">
+        <h3 class="card-title">Lyapunov Stability</h3>
+        <p class="card-description">
+          Lyapunov candidate function V(x) ensures system stability. V(0)=0 and V(x)>0 for all x≠0.
+        </p>
+        <div id="lyapunov-rate" class="stat-value">V(s)=0 rate: --%</div>
+        <div class="sparkline" id="lyapunov-sparkline">
+          <div class="skeleton" style="width: 100%; height: 8px;"></div>
+        </div>
+      </div>
+      
+      <!-- Prospect Theory -->
+      <div class="card neomorphic-raised">
+        <h3 class="card-title">Prospect Theory</h3>
+        <p class="card-description">
+          Loss-aversion gate blocks decisions with negative expected utility. Protects against reckless agent behavior.
+        </p>
+        <div id="prospect-count" class="stat-value">-- decisions blocked today</div>
+      </div>
+      
+      <!-- Shannon Entropy -->
+      <div class="card neomorphic-raised">
+        <h3 class="card-title">Shannon Entropy</h3>
+        <p class="card-description">
+          Measures council decision diversity. Higher entropy indicates more distributed decision-making.
+        </p>
+        <div id="entropy-label" class="stat-value">Avg entropy: --</div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="entropy-bar" style="width: 0%;"></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Property Verification Table -->
+    <div class="table-card neomorphic-raised">
+      <h3 class="section-title">Property Verification Table</h3>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>CHECK ID</th>
+            <th>AGENT</th>
+            <th>STATUS</th>
+            <th>BITMASK</th>
+            <th>LYAPUNOV</th>
+            <th>LA-EV</th>
+            <th>ENTROPY</th>
+            <th>TIME</th>
+          </tr>
+        </thead>
+        <tbody id="verification-table">
+          <tr>
+            <td colspan="8"><div class="skeleton" style="height: 40px;"></div></td>
+          </tr>
+          <tr>
+            <td colspan="8"><div class="skeleton" style="height: 40px;"></div></td>
+          </tr>
+          <tr>
+            <td colspan="8"><div class="skeleton" style="height: 40px;"></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Violation History Chart -->
+    <div class="chart-card neomorphic-raised">
+      <h3 class="section-title">Violation History (14 days)</h3>
+      <div class="chart-container">
+        <canvas id="violation-chart"></canvas>
+      </div>
+    </div>
+  </main>
+  
+  <!-- Violations Modal -->
+  <dialog id="violations-modal">
+    <button class="modal-close" id="modal-close">×</button>
+    <h3 class="modal-title">Violated Properties</h3>
+    <div class="violation-list" id="violation-list"></div>
+  </dialog>
+  
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+  
+  <script src="js/env.js"></script>
+  <script type="module">
+    const { supabase, timeAgo, truncate, toast, loadTopBar, setActiveNav } = window.AG;
+    
+    let violationChart;
+    
+    // Re-evaluate button
+    document.getElementById('re-evaluate-btn').addEventListener('click', async () => {
+      const btn = document.getElementById('re-evaluate-btn');
+      const originalContent = btn.innerHTML;
+      
+      try {
+        btn.innerHTML = '<span class="spinner"></span> Processing...';
+        btn.disabled = true;
+        
+        // Fetch most recent pending council session
+        const { data, error } = await supabase
+          .from('council_sessions')
+          .select('session_id')
+          .eq('approved', null)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (error || !data) {
+          showToast('No pending session found');
+          btn.innerHTML = originalContent;
+          btn.disabled = false;
+          return;
+        }
+        
+        // POST to API endpoint
+        const response = await fetch('/api/symbolic-check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: data.session_id })
+        });
+        
+        if (response.ok) {
+          showToast('Re-evaluation queued');
+        } else {
+          showToast('Failed to queue re-evaluation');
+        }
+      } catch (err) {
+        console.error('Re-evaluate error:', err);
+        showToast('Error during re-evaluation');
+      } finally {
+        btn.innerHTML = originalContent;
+        btn.disabled = false;
+      }
+    });
+    
+    // Load Lyapunov Stability
+    async function loadLyapunovStability() {
+      try {
+        const { data, error } = await supabase
+          .from('symbolic_checks')
+          .select('lyapunov_value');
+        
+        if (!error && data && data.length > 0) {
+          const total = data.length;
+          const zeroCount = data.filter(d => d.lyapunov_value === 0).length;
+          const rate = ((zeroCount / total) * 100).toFixed(1);
+          
+          document.getElementById('lyapunov-rate').textContent = `V(s)=0 rate: ${rate}%`;
+          
+          // Sparkline
+          const recent = data.slice(-20);
+          const sparkline = document.getElementById('lyapunov-sparkline');
+          sparkline.innerHTML = recent.map(d => {
+            const isZero = d.lyapunov_value === 0;
+            return `<div class="sparkline-dot ${isZero ? 'green' : 'red'}"></div>`;
+          }).join('');
+        }
+      } catch (err) {
+        console.error('Lyapunov error:', err);
+      }
+    }
+    
+    // Load Prospect Theory
+    async function loadProspectTheory() {
+      try {
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        
+        const { count, error } = await supabase
+          .from('symbolic_checks')
+          .select('*', { count: 'exact', head: true })
+          .lt('loss_adjusted_ev', 0)
+          .gte('created_at', oneDayAgo);
+        
+        if (!error) {
+          document.getElementById('prospect-count').textContent = `${count || 0} decisions blocked by loss-aversion gate today`;
+        }
+      } catch (err) {
+        console.error('Prospect theory error:', err);
+      }
+    }
+    
+    // Load Shannon Entropy
+    async function loadShannonEntropy() {
+      try {
+        const { data, error } = await supabase
+          .from('symbolic_checks')
+          .select('council_entropy');
+        
+        if (!error && data && data.length > 0) {
+          const avgEntropy = data.reduce((sum, d) => sum + (d.council_entropy || 0), 0) / data.length;
+          const percentage = Math.min(avgEntropy * 100, 100);
+          
+          document.getElementById('entropy-label').textContent = `Avg entropy: ${avgEntropy.toFixed(2)}`;
+          
+          const bar = document.getElementById('entropy-bar');
+          bar.style.width = `${percentage}%`;
+          
+          if (avgEntropy < 0.5) {
+            bar.className = 'progress-fill green';
+          } else if (avgEntropy < 0.8) {
+            bar.className = 'progress-fill amber';
+          } else {
+            bar.className = 'progress-fill red';
+          }
+        }
+      } catch (err) {
+        console.error('Entropy error:', err);
+      }
+    }
+    
+    // Load Property Verification Table
+    async function loadVerificationTable() {
+      try {
+        const { data, error } = await supabase
+          .from('symbolic_checks')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        if (!error && data) {
+          const tbody = document.getElementById('verification-table');
+          tbody.innerHTML = data.map(row => {
+            const isSat = row.status === 'SAT';
+            const bitmask = (row.satisfied_count || 0).toString(2).padStart(10, '0').split('').map(b => 
+              b === '1' ? 'satisfied' : 'violated'
+            );
+            
+            return `
+              <tr>
+                <td>${truncate(row.cert_hash || '', 10)}</td>
+                <td><a href="agent-registry.html?agent=${row.agent_address}" style="color: #6366f1; text-decoration: none;">${truncate(row.agent_address || '', 8)}</a></td>
+                <td>
+                  ${isSat 
+                    ? '<span class="sat-badge">✓ SAT</span>'
+                    : '<span class="unsat-badge">✗ UNSAT</span>'}
+                </td>
+                <td>
+                  <div class="bitmask-dots">
+                    ${bitmask.map(b => `<div class="bit-dot ${b}"></div>`).join('')}
+                  </div>
+                </td>
+                <td>${row.lyapunov_value?.toFixed(2) || 0}</td>
+                <td>${row.loss_adjusted_ev?.toFixed(2) || 0}</td>
+                <td>${row.council_entropy?.toFixed(2) || 0}</td>
+                <td>${timeAgo(row.created_at)}</td>
+              </tr>
+            `;
+          }).join('');
+          
+          // Add view violations links
+          tbody.querySelectorAll('tr').forEach((row, i) => {
+            const rowData = data[i];
+            if (rowData.status === 'UNSAT') {
+              const lastCell = row.querySelector('td:last-child');
+              const link = document.createElement('a');
+              link.className = 'view-violations';
+              link.textContent = 'View violations';
+              link.addEventListener('click', () => showViolations(rowData));
+              lastCell.after(link);
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Verification table error:', err);
+        document.getElementById('verification-table').innerHTML = '<tr><td colspan="8">Error loading data</td></tr>';
+      }
+    }
+    
+    // Show violations modal
+    function showViolations(rowData) {
+      const modal = document.getElementById('violations-modal');
+      const list = document.getElementById('violation-list');
+      
+      const bitmask = (rowData.satisfied_count || 0).toString(2).padStart(10, '0');
+      const violations = [];
+      
+      for (let i = 0; i < 10; i++) {
+        if (bitmask[i] === '0') {
+          violations.push(`P${i + 1}`);
+        }
+      }
+      
+      list.innerHTML = violations.map(v => 
+        `<div class="violation-item">${v}</div>`
+      ).join('');
+      
+      modal.showModal();
+    }
+    
+    // Modal close
+    document.getElementById('modal-close').addEventListener('click', () => {
+      document.getElementById('violations-modal').close();
+    });
+    
+    // Load Violation History Chart
+    async function loadViolationHistory() {
+      try {
+        const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+        
+        const { data, error } = await supabase
+          .from('symbolic_checks')
+          .select('created_at')
+          .eq('status', 'UNSAT')
+          .gte('created_at', fourteenDaysAgo);
+        
+        if (!error && data && data.length > 0) {
+          // Group by day
+          const daily = {};
+          data.forEach(d => {
+            const day = new Date(d.created_at).toISOString().split('T')[0];
+            daily[day] = (daily[day] || 0) + 1;
+          });
+          
+          const labels = Object.keys(daily).reverse();
+          const values = labels.map(l => daily[l]);
+          
+          const ctx = document.getElementById('violation-chart').getContext('2d');
+          
+          if (violationChart) {
+            violationChart.destroy();
+          }
+          
+          violationChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels.map(l => new Date(l).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+              datasets: [{
+                label: 'Violations',
+                data: values,
+                backgroundColor: '#dc2626',
+                borderRadius: 4
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                y: { beginAtZero: true, grid: { display: false } },
+                x: { grid: { display: false } }
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Violation history error:', err);
+      }
+    }
+    
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      setActiveNav();
+      loadTopBar();
+      loadLyapunovStability();
+      loadProspectTheory();
+      loadShannonEntropy();
+      loadVerificationTable();
+      loadViolationHistory();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentGuardian — Architecture</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.1/ethers.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #e8eaf0;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+    
+    .neomorphic-raised {
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    .neomorphic-inset {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      border-radius: 12px;
+      border: none;
+    }
+    
+    .skeleton {
+      background: linear-gradient(90deg, #dcdee4 25%, #e8eaf0 50%, #dcdee4 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+    
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .skeleton-value {
+      height: 32px;
+      width: 60%;
+    }
+    
+    .error-state {
+      color: #dc2626;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .retry-btn {
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: none;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      color: #1e293b;
+      cursor: pointer;
+    }
+    
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 256px;
+      height: 100vh;
+      background: #e8eaf0;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+    }
+    
+    .sidebar-header {
+      margin-bottom: 32px;
+    }
+    
+    .sidebar-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    
+    .sidebar-version {
+      font-size: 12px;
+      color: #64748b;
+    }
+    
+    .nav-links {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .nav-link {
+      padding: 12px 16px;
+      border-radius: 12px;
+      text-decoration: none;
+      color: #64748b;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .nav-link:hover {
+      color: #6366f1;
+    }
+    
+    .nav-link.active {
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      color: #6366f1;
+    }
+    
+    .sidebar-bottom {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .request-access-btn {
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #6366f1;
+      color: white;
+      border: none;
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: 6px 6px 12px rgba(99, 102, 241, 0.3);
+      transition: all 0.2s;
+    }
+    
+    .request-access-btn:hover {
+      background: #4f46e5;
+    }
+    
+    .sidebar-links {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .sidebar-link {
+      color: #64748b;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    
+    .sidebar-link:hover {
+      color: #6366f1;
+    }
+    
+    .main-content {
+      margin-left: 256px;
+      padding: 24px;
+    }
+    
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      gap: 16px;
+    }
+    
+    .search-input {
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: none;
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      width: 300px;
+      font-family: inherit;
+      color: #1e293b;
+    }
+    
+    .search-input::placeholder {
+      color: #94a3b8;
+    }
+    
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #64748b;
+      font-size: 18px;
+      transition: all 0.2s;
+    }
+    
+    .icon-btn:hover {
+      color: #6366f1;
+    }
+    
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #6366f1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+    }
+    
+    .page-header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    
+    .page-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    
+    .page-subtitle {
+      font-size: 14px;
+      color: #64748b;
+    }
+    
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 24px;
+    }
+    
+    .pipeline-column {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    
+    .layer-card {
+      width: 100%;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.3s;
+      position: relative;
+    }
+    
+    .layer-card:hover {
+      transform: translateY(-2px);
+    }
+    
+    .layer-card.selected {
+      box-shadow: 0 0 0 3px #6366f1, 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      animation: pulse-glow 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 0 3px #6366f1, 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6); }
+      50% { box-shadow: 0 0 0 5px #6366f1, 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6); }
+    }
+    
+    .layer-card.border-violet {
+      border-left: 4px solid #7c3aed;
+    }
+    
+    .layer-card.border-green {
+      border-left: 4px solid #10b981;
+    }
+    
+    .layer-card.border-red {
+      border-left: 4px solid #dc2626;
+    }
+    
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    
+    .card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e293b;
+      flex: 1;
+    }
+    
+    .card-badge {
+      font-size: 11px;
+      font-weight: 600;
+      color: #64748b;
+      background: #e8eaf0;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+    
+    .card-description {
+      font-size: 14px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+    
+    .detail-panel {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+      margin-top: 0;
+    }
+    
+    .detail-panel.open {
+      max-height: 200px;
+      margin-top: 16px;
+    }
+    
+    .detail-content {
+      padding-top: 16px;
+      border-top: 1px solid rgba(0,0,0,0.05);
+      font-size: 13px;
+      color: #64748b;
+      line-height: 1.6;
+    }
+    
+    .arrow {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .arrow svg {
+      width: 24px;
+      height: 24px;
+      color: #6366f1;
+    }
+    
+    .cross-cutting-header {
+      font-size: 14px;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+    }
+    
+    .cross-card {
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    
+    .cross-card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    
+    .cross-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+    
+    .cross-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    
+    .cross-description {
+      font-size: 13px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+    
+    /* Modal */
+    dialog {
+      border: none;
+      border-radius: 16px;
+      background: #e8eaf0;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+      padding: 24px;
+      max-width: 500px;
+    }
+    
+    dialog::backdrop {
+      background: rgba(0,0,0,0.5);
+    }
+    
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 16px;
+    }
+    
+    .form-group {
+      margin-bottom: 16px;
+    }
+    
+    .form-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: #1e293b;
+      margin-bottom: 8px;
+      display: block;
+    }
+    
+    .form-input {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: none;
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      font-family: inherit;
+      font-size: 14px;
+      color: #1e293b;
+    }
+    
+    .form-input:focus {
+      outline: none;
+    }
+    
+    .form-textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: none;
+      background: #e8eaf0;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+      font-family: inherit;
+      font-size: 14px;
+      color: #1e293b;
+      resize: vertical;
+      min-height: 100px;
+    }
+    
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      margin-top: 24px;
+    }
+    
+    .btn {
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: none;
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn-raised {
+      background: #e8eaf0;
+      box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+      color: #1e293b;
+    }
+    
+    .btn-raised:hover {
+      box-shadow: 4px 4px 8px rgba(0,0,0,0.06), -4px -4px 8px rgba(255,255,255,0.5);
+    }
+    
+    .btn-primary {
+      background: #6366f1;
+      color: white;
+      box-shadow: 6px 6px 12px rgba(99, 102, 241, 0.3);
+    }
+    
+    .btn-primary:hover {
+      background: #4f46e5;
+    }
+    
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 16px 24px;
+      border-radius: 12px;
+      background: #10b981;
+      color: white;
+      font-weight: 500;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      z-index: 1000;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s;
+    }
+    
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    .skeleton {
+      background: linear-gradient(90deg, #e8eaf0 25%, #f1f3f5 50%, #e8eaf0 75%);
+      background-size: 200% 100%;
+      animation: pulse 1.5s infinite;
+      border-radius: 4px;
+    }
+    
+    @keyframes pulse {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+  </style>
+</head>
+<body>
+  <script src="js/env.js"></script>
+  <script src="js/client.js"></script>
+  <script type="module">
+    import { initNav } from './js/nav.js';
+    import { initTopBar } from './js/topbar.js';
+    initNav('architecture');
+    initTopBar();
+  </script>
+
+  <!-- Main content -->
+  <main class="main-content">
+    <!-- Page header -->
+    <div class="page-header">
+      <h1 class="page-title">System Architecture</h1>
+      <p class="page-subtitle">Interactive visualization of the 10-layer AgentGuardian execution pipeline.</p>
+    </div>
+    
+    <!-- Content grid -->
+    <div class="content-grid">
+      <!-- Pipeline column -->
+      <div class="pipeline-column">
+        <!-- Human Principal -->
+        <div class="layer-card neomorphic-raised" data-layer="human">
+          <div class="card-header">
+            <div class="card-icon">👤</div>
+            <div class="card-title">Human Principal</div>
+            <div class="card-badge">LATENCY 12ms</div>
+          </div>
+          <div class="card-description">Intent Generation & Authentication</div>
+          <div class="detail-panel">
+            <div class="detail-content">
+              The Human Principal layer serves as the entry point for user intents, performing authentication and intent parsing before routing to the orchestrator.
+            </div>
+          </div>
+        </div>
+        
+        <div class="arrow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 4v16M8 12l4 4 4-4"/>
+          </svg>
+        </div>
+        
+        <!-- Orchestrator -->
+        <div class="layer-card neomorphic-raised" data-layer="orchestrator">
+          <div class="card-header">
+            <div class="card-icon">🔀</div>
+            <div class="card-title">Orchestrator</div>
+            <div class="card-badge" id="orchestrator-latency">LATENCY <span class="skeleton" style="display: inline-block; width: 30px; height: 12px;"></span></div>
+          </div>
+          <div class="card-description">Task Routing & State Management</div>
+          <div class="detail-panel">
+            <div class="detail-content">
+              The Orchestrator manages task distribution across the multi-agent system, maintaining state and ensuring proper routing of operations through the security layers.
+            </div>
+          </div>
+        </div>
+        
+        <div class="arrow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 4v16M8 12l4 4 4-4"/>
+          </svg>
+        </div>
+        
+        <!-- Layer 3: Council -->
+        <div class="layer-card neomorphic-raised border-violet" data-layer="council">
+          <div class="card-header">
+            <div class="card-icon">⚖️</div>
+            <div class="card-title">Layer 3: Council</div>
+          </div>
+          <div class="card-description">Consensus & Policy Evaluation</div>
+          <div class="detail-panel">
+            <div class="detail-content">
+              The Council layer implements multi-agent consensus mechanisms for transaction approval, evaluating policies and making collective decisions on security-critical operations.
+            </div>
+          </div>
+        </div>
+        
+        <div class="arrow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 4v16M8 12l4 4 4-4"/>
+          </svg>
+        </div>
+        
+        <!-- Layer 1: ZK-ML -->
+        <div class="layer-card neomorphic-raised border-green" data-layer="zkml">
+          <div class="card-header">
+            <div class="card-icon">🔒</div>
+            <div class="card-title">Layer 1: ZK-ML</div>
+            <div class="card-badge" id="zkml-latency">LATENCY <span class="skeleton" style="display: inline-block; width: 30px; height: 12px;"></span></div>
+          </div>
+          <div class="card-description">Zero-Knowledge Inference Proofs</div>
+          <div class="detail-panel">
+            <div class="detail-content">
+              Layer 1 provides zero-knowledge proof verification for ML model inference outputs, ensuring computational integrity without revealing sensitive model parameters.
+            </div>
+          </div>
+        </div>
+        
+        <div class="arrow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 4v16M8 12l4 4 4-4"/>
+          </svg>
+        </div>
+        
+        <!-- Layer 6B: Vaccine -->
+        <div class="layer-card neomorphic-raised border-red" data-layer="vaccine">
+          <div class="card-header">
+            <div class="card-icon">💉</div>
+            <div class="card-title">Layer 6B: Vaccine</div>
+          </div>
+          <div class="card-description">Adversarial Prompt Injection Defense</div>
+          <div class="detail-panel">
+            <div class="detail-content">
+              The Vaccine layer provides self-immunizing threat defense against adversarial prompt injections, using a Sparse Merkle Tree blacklist of malicious fingerprints.
+            </div>
+          </div>
+        </div>
+        
+        <div class="arrow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 4v16M8 12l4 4 4-4"/>
+          </svg>
+        </div>
+        
+        <!-- Layer 2: Smart Contracts -->
+        <div class="layer-card neomorphic-raised" data-layer="contracts">
+          <div class="card-header">
+            <div class="card-icon">📄</div>
+            <div class="card-title">Layer 2: Smart Contracts</div>
+            <div class="card-badge">GAS EST. ~45k</div>
+          </div>
+          <div class="card-description">On-Chain Execution & Settlement</div>
+          <div class="detail-panel">
+            <div class="detail-content">
+              Layer 2 handles on-chain execution and settlement of approved transactions, ensuring atomicity and finality through smart contract deployment.
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Cross-cutting systems column -->
+      <div>
+        <div class="cross-cutting-header">CROSS-CUTTING SYSTEMS</div>
+        
+        <!-- Layer 4: MCP -->
+        <div class="cross-card neomorphic-raised" id="cross-mcp">
+          <div class="cross-card-header">
+            <div class="cross-icon">🔌</div>
+            <div class="cross-title">Layer 4: MCP</div>
+          </div>
+          <div class="cross-description">
+            Model Context Protocol integration for standardized communication between agents and external services.
+          </div>
+        </div>
+        
+        <!-- Layer 5: Feedback -->
+        <div class="cross-card neomorphic-raised" id="cross-feedback">
+          <div class="cross-card-header">
+            <div class="cross-icon">🔄</div>
+            <div class="cross-title">Layer 5: Feedback</div>
+          </div>
+          <div class="cross-description">
+            Continuous learning loop capturing execution outcomes for model improvement and policy refinement.
+          </div>
+        </div>
+        
+        <!-- Layer 6A: Underwriter -->
+        <div class="cross-card neomorphic-raised" id="cross-underwriter">
+          <div class="cross-card-header">
+            <div class="cross-icon">🧢</div>
+            <div class="cross-title">Layer 6A: Underwriter</div>
+          </div>
+          <div class="cross-description">
+            Decentralized insurance pool for risk management and financial protection against security incidents.
+          </div>
+        </div>
+        
+        <!-- Layer 6C: Sentinel -->
+        <div class="cross-card neomorphic-raised" id="cross-sentinel">
+          <div class="cross-card-header">
+            <div class="cross-icon">👁️</div>
+            <div class="cross-title">Layer 6C: Sentinel</div>
+          </div>
+          <div class="cross-description">
+            Cross-chain monitoring and threat detection system with real-time alerting and freeze capabilities.
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  
+  <!-- Request Node Access Modal -->
+  <dialog id="access-modal">
+    <h3 class="modal-title">Request Node Access</h3>
+    <div class="form-group">
+      <label class="form-label">Wallet Address</label>
+      <input type="text" class="form-input" id="wallet-input" placeholder="0x...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Reason</label>
+      <textarea class="form-textarea" id="reason-input" placeholder="Describe your use case for node access..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-raised" id="modal-cancel">Cancel</button>
+      <button class="btn btn-primary" id="modal-submit">Submit Request</button>
+    </div>
+  </dialog>
+  
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+  
+  <script src="js/env.js"></script>
+  <script type="module">
+    const { supabase, getSigner, truncate, toast, loadTopBar, setActiveNav, safeContractRead } = window.AG;
+    
+    // Load latency data
+    async function loadLatency() {
+      try {
+        const { data, error } = await supabase
+          .from('aggregation_batches')
+          .select('latency_ms')
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        if (!error && data && data.length > 0) {
+          const avgLatency = data.reduce((sum, d) => sum + (d.latency_ms || 0), 0) / data.length;
+          const latencyText = Math.round(avgLatency) + 'ms';
+          
+          document.getElementById('orchestrator-latency').innerHTML = 'LATENCY ' + latencyText;
+          document.getElementById('zkml-latency').innerHTML = 'LATENCY ' + latencyText;
+        }
+      } catch (err) {
+        console.error('Latency error:', err);
+      }
+    }
+    
+    // Layer card click interactions
+    document.querySelectorAll('.layer-card').forEach(card => {
+      card.addEventListener('click', () => {
+        // Remove selection from all cards
+        document.querySelectorAll('.layer-card').forEach(c => c.classList.remove('selected'));
+        
+        // Add selection to clicked card
+        card.classList.add('selected');
+        
+        // Toggle detail panel
+        const detailPanel = card.querySelector('.detail-panel');
+        detailPanel.classList.toggle('open');
+        
+        // Scroll to relevant cross-cutting card
+        const layerId = card.dataset.layer;
+        const crossCardMap = {
+          'council': 'cross-mcp',
+          'zkml': 'cross-feedback',
+          'vaccine': 'cross-sentinel',
+          'contracts': 'cross-underwriter'
+        };
+        
+        if (crossCardMap[layerId]) {
+          const crossCard = document.getElementById(crossCardMap[layerId]);
+          if (crossCard) {
+            crossCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            crossCard.style.boxShadow = '0 0 0 3px #6366f1, 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6)';
+            setTimeout(() => {
+              crossCard.style.boxShadow = '';
+            }, 2000);
+          }
+        }
+      });
+    });
+    
+    // Request Node Access modal
+    const accessModal = document.getElementById('access-modal');
+    const requestBtn = document.getElementById('request-access-btn');
+    if (requestBtn) {
+      requestBtn.addEventListener('click', async () => {
+        try {
+          const signer = await getSigner();
+          const address = await signer.getAddress();
+          document.getElementById('wallet-input').value = address;
+        } catch (err) {
+          // Wallet not connected, leave empty
+        }
+        accessModal.showModal();
+      });
+    }
+    
+    const modalCancel = document.getElementById('modal-cancel');
+    if (modalCancel) {
+      modalCancel.addEventListener('click', () => {
+        accessModal.close();
+      });
+    }
+    
+    const modalSubmit = document.getElementById('modal-submit');
+    if (modalSubmit) {
+      modalSubmit.addEventListener('click', async () => {
+        const wallet = document.getElementById('wallet-input').value;
+        const reason = document.getElementById('reason-input').value;
+        
+        if (!wallet || !reason) {
+          showToast('Please fill in all fields');
+          return;
+        }
+        
+        try {
+          const { error } = await supabase
+            .from('node_access_requests')
+            .insert({
+              wallet_address: wallet,
+              reason: reason,
+              created_at: new Date().toISOString()
+            });
+          
+          if (!error) {
+            showToast('Request submitted');
+            accessModal.close();
+            document.getElementById('wallet-input').value = '';
+            document.getElementById('reason-input').value = '';
+          }
+        } catch (err) {
+          console.error('Submit error:', err);
+          showToast('Failed to submit request');
+        }
+      });
+    }
+    
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      setActiveNav();
+      loadTopBar();
+      loadLatency();
+    });
+  </script>
+</body>
+</html>

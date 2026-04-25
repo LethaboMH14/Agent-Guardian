@@ -1,0 +1,19 @@
+{
+  "note": "ADD THESE to your existing package.json dependencies section. Do not replace your entire package.json.",
+  "dependencies_to_add": {
+    "openai": "^4.52.0",
+    "groq-sdk": "^0.7.0",
+    "@google/generative-ai": "^0.17.0",
+    "@qdrant/js-client-rest": "^1.9.0",
+    "@supabase/supabase-js": "^2.44.0",
+    "circomlibjs": "^0.1.7"
+  },
+  "scripts_to_add": {
+    "council:test":   "npx tsx src/council/orchestrator.ts",
+    "demo:bulk":      "npx tsx scripts/demo-bulk.ts --network arcTestnet --count 60",
+    "demo:local":     "npx tsx scripts/demo-bulk.ts --network localhost --count 10",
+    "zk:prove":       "npx tsx scripts/zk-prove.ts",
+    "zk:setup":       "npx tsx scripts/zk-setup.ts"
+  },
+  "install_command": "npm install openai groq-sdk @google/generative-ai @qdrant/js-client-rest @supabase/supabase-js circomlibjs"
+}
