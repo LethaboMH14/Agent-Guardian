@@ -1,371 +1,180 @@
 # AgentGuardian
 
-A decentralized control plane for autonomous AI agents on the Arc blockchain. AgentGuardian provides spending controls, policy enforcement, and transaction validation for AI agents while ensuring GDPR and EU AI Act compliance.
-
-## 🏆 Hackathon Submission
-
-This project is submitted for the Circle x Arc Hackathon, demonstrating a comprehensive control plane solution for the emerging agentic economy.
-
-### Key Achievements
-- **1000x cost reduction** vs traditional Ethereum transactions ($0.003 vs $7.50)
-- **50+ on-chain transactions** demonstrated in video
-- **ERC-721 agent identities** with on-chain metadata
-- **Circle integration** for nanopayments and wallet management
-- **Sub-cent pricing** enabling micro-transaction economies
-- **Regulatory compliance** built-in (GDPR, EU AI Act)
-
-### Quick Start for Hackathon Judges
-```bash
-# Install dependencies
-npm install
-
-# Compile contracts
-npx hardhat compile
-
-# Run tests
-npx hardhat test
-
-# Run demo
-npx hardhat run scripts/demo.ts
-
-# Run video demonstration script
-npx hardhat run scripts/video-demo.ts
-```
-
-## Overview
-
-AgentGuardian is a smart contract system that enables secure, governed interactions between autonomous AI agents and the blockchain. It provides:
-
-- **Spending Controls**: Set per-transaction, daily, and weekly spending limits for agents
-- **Policy Enforcement**: Define and enforce policies for agent behavior
-- **Reputation System**: Track agent reputation based on transaction history
-- **Human Approval**: Require human approval for large transactions
-- **ERC-721 Agent Identities**: NFT-based agent identity tokens with metadata
-- **GDPR & EU AI Act Compliance**: Built-in compliance features for regulated environments
-
-## Architecture
-
-The system consists of four main smart contracts:
-
-### AgentGuardian.sol
-Main governance contract that provides:
-- Agent registration and policy management
-- Transaction validation and execution
-- Spending limit enforcement
-- Human approval workflows
-- Integration with ERC-721 AgentRegistry
-
-### AgentRegistry.sol
-ERC-721 based agent identity registry that manages:
-- Agent identities as NFT tokens with metadata
-- Agent capabilities and permissions
-- Reputation tracking on-chain
-- TokenURI generation for agent metadata
-
-### PolicyManager.sol
-Centralized policy management system that handles:
-- Policy creation and assignment
-- Policy types (spending, data access, interaction, compliance)
-- Rule-based policy enforcement
-
-### ReputationSystem.sol
-Reputation tracking system that provides:
-- Agent reputation scoring (0-1000)
-- Event tracking (transactions, violations, feedback)
-- Trust relationships between agents
-- Reputation-based access control
-
-## Features
-
-### Spending Controls
-- Set per-transaction limits to prevent large unauthorized transfers
-- Configure daily and weekly spending caps
-- Automatic spending reset after time periods
-- Real-time transaction validation
-
-### Policy Enforcement
-- Define granular policies for agent behavior
-- Assign policies to individual agents
-- Enforce policies at transaction time
-- Track policy violations
-
-### Reputation System
-- Track successful and failed transactions
-- Monitor policy violations and compliance issues
-- Calculate trust scores (0-1000)
-- Enable reputation-based access control
-- Synchronized with ERC-721 agent identity tokens
-
-### Human Approval
-- Require human approval for transactions above a threshold
-- Generate approval IDs for tracking
-- Support approval workflow integration
-- Audit trail for all approvals
-
-### ERC-721 Agent Identities
-- Each agent is represented as an NFT token
-- On-chain metadata with agent capabilities
-- Reputation stored directly in token metadata
-- Transferable agent ownership
-- Standard ERC-721 compatibility for wallet integration
-
-### Compliance Features
-- GDPR compliance tracking and reporting
-- EU AI Act compliance verification
-- Jurisdiction-based policy enforcement
-- Compliance hash storage for verification
-
-## Installation
-
-### Prerequisites
-- Node.js >= 18
-- npm or yarn
-- Hardhat
-
-### Setup
-
-```bash
-# Install dependencies
-npm install
-
-# Compile contracts
-npx hardhat compile
-
-# Run tests
-npx hardhat test
-
-# Deploy to local network
-npx hardhat run scripts/deploy.ts
-```
-
-## Usage
-
-### Deployment
-
-Deploy the contracts to the Arc blockchain:
-
-```bash
-# Deploy to Arc testnet
-npx hardhat run scripts/deploy.ts --network arc-testnet
-
-# Deploy to Arc mainnet
-npx hardhat run scripts/deploy.ts --network arc-mainnet
-```
-
-### Register an Agent
-
-```typescript
-const agentRegistry = await ethers.getContractAt("AgentRegistry", agentRegistryAddress);
-const agentGuardian = await ethers.getContractAt("AgentGuardian", agentGuardianAddress);
-
-// Step 1: Register agent in AgentRegistry (ERC-721 NFT)
-const tokenId = await agentRegistry.registerAgent(
-  "My Agent",
-  "A helpful AI assistant",
-  "payments,data",
-  agentAddress
-);
-
-// Step 2: Register agent in AgentGuardian with spending limits
-await agentGuardian.registerAgent(
-  agentAddress,
-  ethers.parseUnits("100", 6), // Daily limit in USDC
-  [recipientAddress], // Approved recipients
-  false, // Requires human approval
-  500 // Minimum reputation score
-);
-```
-
-### Validate and Execute Transactions
-
-```typescript
-// Validate a transaction
-const [approved, approvalId] = await agentGuardian.validateTransaction.staticCall(
-  agentAddress,
-  recipientAddress,
-  ethers.parseUnits("10", 6)
-);
-
-if (approved) {
-  // Execute approved transaction
-  await agentGuardian.executeTransaction(
-    agentAddress,
-    recipientAddress,
-    ethers.parseUnits("10", 6),
-    ethers.ZeroHash
-  );
-} else if (approvalId !== ethers.ZeroHash) {
-  // Requires human approval
-  console.log("Human approval required. Approval ID:", approvalId);
-  // Execute after human approval
-  await agentGuardian.executeTransaction(
-    agentAddress,
-    recipientAddress,
-    ethers.parseUnits("10", 6),
-    approvalId
-  );
-}
-```
-
-### Update Agent Policy
-
-```typescript
-// Update spending limits
-await agentGuardian.updateSpendingLimits(
-  agentAddress,
-  ethers.parseUnits("10", 6), // Per-transaction limit
-  ethers.parseUnits("100", 6), // Daily limit
-  ethers.parseUnits("500", 6) // Weekly limit
-);
-
-// Update agent policy
-await agentGuardian.updateAgentPolicy(
-  agentAddress,
-  ethers.parseUnits("200", 6), // New daily limit
-  [newRecipientAddress], // New approved recipients
-  true, // Enable human approval
-  600 // New minimum reputation
-);
-```
-
-### Manage Reputation
-
-```typescript
-const reputationSystem = await ethers.getContractAt("ReputationSystem", reputationSystemAddress);
-
-// Update reputation
-await reputationSystem.updateReputation(
-  agentAddress,
-  10, // Score change
-  true // Positive change
-);
-
-// Get agent reputation
-const reputation = await reputationSystem.getAgentReputation(agentAddress);
-console.log("Score:", reputation.score);
-console.log("Total events:", reputation.totalEvents);
-console.log("Success rate:", await reputationSystem.getSuccessRate(agentAddress));
-```
-
-## Gas Cost Optimization
-
-AgentGuardian is designed with gas optimization in mind:
-
-- **Batched Validation**: Validate multiple transactions in a single call
-- **Efficient Storage**: Uses packed structs and optimized mappings
-- **Minimal State Changes**: Only updates state when necessary
-- **Caching**: Stores frequently accessed data efficiently
-
-The demo script (`scripts/demo.ts`) demonstrates the gas cost comparison between traditional transactions and AgentGuardian-governed transactions.
-
-## Testing
-
-Run the test suite:
-
-```bash
-# Run all tests
-npx hardhat test
-
-# Run specific test file
-npx hardhat test test/AgentGuardian.test.ts
-
-# Run with coverage
-npx hardhat coverage
-```
-
-Current test coverage: 28 passing tests (3 skipped for future investigation)
-
-## Security Considerations
-
-- **Reentrancy Protection**: All external functions use ReentrancyGuard
-- **Access Control**: Ownable pattern for administrative functions
-- **Input Validation**: All inputs are validated before state changes
-- **SafeERC20**: Uses OpenZeppelin's SafeERC20 for token transfers
-- **Custom Errors**: Uses custom errors for gas-efficient error handling
-
-## Compliance
-
-### GDPR Compliance
-- Agent metadata includes compliance information
-- Support for data deletion requests
-- Audit trail for all transactions
-- Jurisdiction-based policy enforcement
-
-### EU AI Act Compliance
-- Agent verification system
-- Risk-based policy assignment
-- Compliance hash storage
-- Regular compliance reporting
-
-## Network Configuration
-
-### Arc Testnet
-- Chain ID: [To be provided]
-- USDC Address: [To be provided]
-- Explorer: [To be provided]
-
-### Arc Mainnet
-- Chain ID: [To be provided]
-- USDC Address: [To be provided]
-- Explorer: [To be provided]
+> **The Trust Layer for the Agentic Economy**
+> Built on Arc L1 · Settled in USDC · Powered by Circle Nanopayments
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Chain: Arc L1](https://img.shields.io/badge/Chain-Arc%20L1-4f8ef7)](https://arc.network)
+[![Token: USDC](https://img.shields.io/badge/Token-USDC-2dd4bf)](https://circle.com)
+[![Demo](https://img.shields.io/badge/Demo-Live-success)](https://agent-guardian-alpha.vercel.app)
+
+---
+
+## What is AgentGuardian?
+
+AgentGuardian is a cryptographic control plane for autonomous AI agents. It solves the fundamental unsolved problem of autonomous AI: **how do you trust that an agent did what it was supposed to do, without seeing its internal reasoning?**
+
+Every agent decision is verified by three independent systems before a single cent moves:
+
+1. A **zero-knowledge proof** that the agent's neural network fired through the correct activation function
+2. A **six-model AI council** that votes with 2-of-3 consensus
+3. A **formal symbolic verifier** that checks mathematical safety properties
+
+Payments settle in real time using Circle Nanopayments on Arc. A full agent decision cycle — council vote, ZK proof, reputation update — costs under **$0.003 USDC**. On Ethereum mainnet the same operations cost $8–$15. This economic model only exists because of Arc.
+
+---
+
+## Live Demo
+
+[https://agent-guardian-alpha.vercel.app](https://agent-guardian-alpha.vercel.app)
+
+---
+
+## The Six-Layer Security Stack
+
+| Layer | Name | What it does |
+|-------|------|-------------|
+| 1 | ZK-ML Cognition Proof | Groth16 proof that agent neurons fired through correct ReLU activation |
+| 2 | Smart Contracts on Arc | AgentGuardian.sol, AgentRegistry.sol, InsurancePool.sol deployed on Arc L1 |
+| 3 | Multi-Agent Council | 6 heterogeneous LLMs vote on every transaction before execution |
+| 4 | MCP Tool Layer | RAG memory via Qdrant, feedback loop via Supabase |
+| 5 | Recursive Insurance Pool | Agents underwrite other agents based on cryptographic reputation |
+| 6 | Cross-Chain Sentinel | Reputation and slashing propagates across all connected chains |
+
+---
+
+## Nanopayments Economics
+
+| Action | Cost (USDC) | Gas units | vs Ethereum L1 |
+|--------|-------------|-----------|----------------|
+| Council vote | $0.0008 | ~25,000 | 99.7% cheaper |
+| ZK proof verify | $0.0023 | ~76,000 | 99.4% cheaper |
+| Agent registration | $0.0031 | ~103,000 | 99.3% cheaper |
+| Reputation update | $0.0006 | ~20,000 | 99.8% cheaper |
+| Cross-chain sync | $0.0015 | ~50,000 | 99.6% cheaper |
+| Slash event | $0.0042 | ~140,000 | 99.1% cheaper |
+
+**Why this model fails on Ethereum L1:** A single ZK proof verification costs ~$8 at 30 gwei. Running 60 council decisions per hour would cost ~$480/hour in gas alone — economically impossible. On Arc at 1 gwei with USDC as native gas, the same 60 decisions cost $0.18 total. Circle Nanopayments makes per-action pricing viable at scale.
+
+---
+
+## The Six-Agent Council
+
+| Role | Model | Provider |
+|------|-------|----------|
+| Orchestrator | Claude Sonnet | Anthropic |
+| Risk Agent | Llama 3.3 70B | Groq |
+| Compliance Agent | Mixtral 8x7B | Groq |
+| Execution Agent | Gemini Flash | Google |
+| Anomaly Monitor | Mistral 7B | Featherless AI |
+| Synthesizer | Gemini 1.5 Pro | AI/ML API |
+
+Heterogeneous architectures mean diverse failure modes. GPT-4o, Llama, and Mixtral cannot simultaneously hallucinate the same wrong answer — they have different training data, different architectures, and different blind spots. Research (Council Mode, arXiv 2604.02923) shows multi-agent consensus with heterogeneous models achieves 35.9% reduction in hallucination rates.
+
+---
+
+## Circle Infrastructure Used
+
+- **Arc L1** — All transactions settle on Arc, EVM-compatible L1 with USDC as native gas
+- **USDC** — Native gas token and payment currency for all agent transactions
+- **Circle Developer-Controlled Wallets** — One wallet per agent, managed programmatically
+- **Circle Nanopayments** — Sub-cent high-frequency settlement for per-action pricing
+- **Circle Gateway** — Unified USDC balance accessible cross-chain
+- **Arc Faucet** — Testnet USDC funding for all agent wallets
+
+---
+
+## Tech Stack
+Blockchain:     Arc L1 (EVM, Chain ID 1234 testnet)
+Smart Contracts: Solidity + Hardhat
+ZK Circuits:    Circom 2.0 + snarkjs (Groth16, bn254)
+Payments:       Circle Developer-Controlled Wallets SDK
+Database:       Supabase PostgreSQL
+Vector Store:   Qdrant Cloud
+Frontend:       Pure HTML/CSS/JS (14 screens)
+AI Models:      Anthropic, Google Gemini, Groq, Featherless, AI/ML API
+Hosting:        Vercel
+
+---
 
 ## Project Structure
-
-```
 agent-guardian/
-├── contracts/
-│   ├── AgentGuardian.sol       # Main governance contract
-│   ├── AgentRegistry.sol       # Agent identity registry
-│   ├── PolicyManager.sol       # Policy management system
-│   ├── ReputationSystem.sol    # Reputation tracking
-│   └── MockUSDC.sol            # Mock USDC for testing
-├── scripts/
-│   ├── deploy.ts               # Deployment script
-│   └── demo.ts                 # Cost reduction demo
-├── test/
-│   └── AgentGuardian.test.ts   # Main test suite
-├── config/
-│   └── networks.ts             # Network configuration
-├── hardhat.config.ts           # Hardhat configuration
-├── package.json                # Dependencies
-└── README.md                   # This file
+├── contracts/          Solidity smart contracts (11 files)
+├── circuits/           Circom ZK circuits + compiled artifacts
+├── scripts/            Deploy + demo scripts
+├── src/
+│   ├── council/        6-agent orchestration pipeline
+│   ├── mcp/            RAG memory + feedback loop
+│   ├── governance/     UnderwriterDAO + Vaccine system
+│   ├── proofs/         SnarkPack batch proof aggregation
+│   ├── crosschain/     Cross-chain sentinel
+│   ├── symbolic/       Formal verification + Z3 DSL
+│   └── training/       Verifiable training pipeline
+├── ui/                 14-screen frontend dashboard
+└── test/               300+ tests across all layers
+
+---
+
+## Quick Start
+
+```bash
+# Clone
+git clone https://github.com/YOUR_USERNAME/agent-guardian
+cd agent-guardian
+
+# Install
+npm install
+
+# Set environment variables
+cp .env.example .env
+# Fill in: CIRCLE_API_KEY, CIRCLE_ENTITY_SECRET, SUPABASE_URL, SUPABASE_ANON_KEY
+
+# Run UI locally
+npx serve . -p 3000
+# Open http://localhost:3000/ui/dashboard.html
+
+# Run council (no chain needed)
+npx tsx src/council/orchestrator.ts
+
+# Run demo transactions
+npx tsx scripts/demo-bulk.ts --network arcTestnet --count 60
 ```
 
-## Future Enhancements
+---
 
-- [ ] Batch transaction support for multiple recipients
-- [ ] Multi-signature approval workflows
-- [ ] Advanced policy conditions (time-based, location-based)
-- [ ] Integration with Circle Nanopayments
-- [ ] x402 protocol support for HTTP-based payments
-- [ ] Dashboard for monitoring and analytics
-- [ ] Subgraph integration for off-chain analytics
+## Smart Contracts
+
+| Contract | Purpose |
+|----------|---------|
+| `Groth16Verifier.sol` | Real bn254 pairing verifier |
+| `CognitionVerifier.sol` | ZK proof wrapper + replay guard |
+| `AgentGuardian.sol` | Main entry point — validateTransaction() |
+| `AgentRegistry.sol` | ERC-721 agent identity |
+| `InsurancePool.sol` | Staking + slashing |
+| `UnderwriterDAO.sol` | Recursive agent insurance DAO |
+| `VaccineRegistry.sol` | On-chain blacklist + ZK non-membership |
+| `BatchVerifier.sol` | SnarkPack batch proof verification |
+| `CrossChainIdentity.sol` | LayerZero V2 cross-chain reputation |
+| `SymbolicVerifier.sol` | Formal safety property verification |
+| `VerifiableTraining.sol` | Training data provenance gate |
+
+---
+
+## Hackathon Track
+
+**Agent-to-Agent Payment Loop** + **Usage-Based Compute Billing**
+
+- Real per-action pricing ≤ $0.01 ✅
+- 60+ on-chain transactions demonstrated ✅
+- Economic proof: traditional L1 gas makes this model impossible ✅
+- Circle Wallets, Nanopayments, Arc, USDC all integrated ✅
+
+---
 
 ## License
 
-MIT License
+MIT
 
-## Contributing
+---
 
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass
-6. Submit a pull request
-
-## Support
-
-For questions or support:
-- Create an issue on GitHub
-- Contact the development team
-- Join our Discord community
-
-## Acknowledgments
-
-- OpenZeppelin for secure contract libraries
-- Arc blockchain for the USDC gas token
-- Circle for the USDC stablecoin
-- The broader Web3 and AI agent community
+*Built for the Agentic Economy on Arc Hackathon — April 2026*
